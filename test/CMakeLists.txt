@@ -63,7 +63,6 @@ target_link_libraries(boost_virtual_serial_cxx14_headers
 target_compile_features(boost_virtual_serial_cxx14_headers PRIVATE cxx_std_14)
 boost_virtual_serial_set_warnings(boost_virtual_serial_cxx14_headers)
 target_compile_definitions(boost_virtual_serial_cxx14_headers PRIVATE BOOST_ALL_NO_LIB)
-boost_virtual_serial_enable_coverage(boost_virtual_serial_cxx14_headers)
 
 add_test(
   NAME boost_virtual_serial_cxx14_headers
@@ -100,7 +99,6 @@ if(BOOST_VIRTUAL_SERIAL_HAS_CONCEPTS)
     PRIVATE cxx_std_20)
   boost_virtual_serial_set_warnings(boost_virtual_serial_cxx20_concepts)
   target_compile_definitions(boost_virtual_serial_cxx20_concepts PRIVATE BOOST_ALL_NO_LIB)
-  boost_virtual_serial_enable_coverage(boost_virtual_serial_cxx20_concepts)
 
   add_test(
     NAME boost_virtual_serial_cxx20_concepts

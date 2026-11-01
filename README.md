@@ -231,11 +231,11 @@ so a pull request cannot lower coverage silently. Linux and macOS include the
 physical backend in the denominator (the PTY pair covers it); Windows excludes
 nothing, which is why its headline line number is the lowest of the three.
 
-The report is generated from the primary `boost_virtual_serial_tests` binary.
-The C++14 and C++20 compatibility executables are compile-time checks: feeding
-differently typed instantiations of the same templates into one `llvm-cov`
-export makes different Clang versions count branches differently, which would
-make the gate depend on the toolchain rather than on the tests.
+Only the primary `boost_virtual_serial_tests` executable is instrumented and
+reported; the C++14 and C++20 compatibility executables are compile-time
+checks. Merging profiles from differently typed instantiations of the same
+templates makes some Clang versions count each branch several times, which
+would make the gate depend on the toolchain rather than on the tests.
 
 A dedicated `Changelog fragments` job validates every file in `changelog.d/`,
 prints the section that the next release would contain, and runs the changelog
