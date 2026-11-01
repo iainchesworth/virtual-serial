@@ -248,7 +248,7 @@ fails the job:
 |---|---|---|
 | `Sanitizers / Linux / ASan + UBSan` | Clang 18 | AddressSanitizer with leak detection, UndefinedBehaviorSanitizer |
 | `Sanitizers / Linux / TSan` | Clang 18 | ThreadSanitizer |
-| `Sanitizers / macOS / ASan + UBSan` | AppleClang | AddressSanitizer, UndefinedBehaviorSanitizer |
+| `Sanitizers / macOS / ASan + UBSan` | AppleClang | AddressSanitizer, UndefinedBehaviorSanitizer (no LeakSanitizer) |
 
 The tests, examples, coroutine tests and concept tests all run under the
 sanitizers. Reproduce locally with:

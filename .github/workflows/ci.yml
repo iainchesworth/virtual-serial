@@ -365,7 +365,8 @@ jobs:
             packages: ""
             compilers: ""
             sanitizers: "address;undefined"
-            asan_options: "detect_leaks=1:halt_on_error=1"
+            # AppleClang ASan has no LeakSanitizer; enabling it aborts every run.
+            asan_options: "halt_on_error=1"
             ubsan_options: "halt_on_error=1:print_stacktrace=1"
             tsan_options: ""
     steps:
