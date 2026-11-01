@@ -549,6 +549,73 @@ jobs:
         run: python -m unittest discover -s tools -p "test_*.py" -v
 
   # ---------------------------------------------------------------------------
+  # Boost.Build: copy the library into a real Boost superproject, generate the
+  # boost/ header tree and build plus run the tests with b2.
+  # ---------------------------------------------------------------------------
+  b2:
+    name: Boost.Build (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Boost source
+        uses: actions/cache@v4
+        with:
+          path: .cache/boost-src
+          key: boost-src-1.92.0
+
+      - name: Download Boost source
+        shell: bash
+        run: |
+          BOOST_SRC="$GITHUB_WORKSPACE/.cache/boost-src/boost_1_92_0"
+          if [ ! -d "$BOOST_SRC" ]; then
+            mkdir -p .cache/boost-src
+            curl -fL --retry 3 -o boost-src.tar.bz2 \
+              https://archives.boost.io/release/1.92.0/source/boost_1_92_0.tar.bz2
+            tar -xjf boost-src.tar.bz2 -C .cache/boost-src
+            rm boost-src.tar.bz2
+          fi
+
+      - name: Bootstrap Boost.Build
+        shell: bash
+        run: |
+          cd "$GITHUB_WORKSPACE/.cache/boost-src/boost_1_92_0"
+          if [ ! -x ./b2 ]; then
+            ./bootstrap.sh --with-toolset=gcc
+          fi
+
+      - name: Generate the boost header tree and build with b2
+        shell: bash
+        run: |
+          BOOST_SRC="$GITHUB_WORKSPACE/.cache/boost-src/boost_1_92_0"
+          rm -rf "$BOOST_SRC/libs/virtual_serial"
+          mkdir -p "$BOOST_SRC/libs/virtual_serial"
+          rsync -a \
+            --exclude .git --exclude .cache --exclude out --exclude 'build-*' \
+            "$GITHUB_WORKSPACE/" "$BOOST_SRC/libs/virtual_serial/"
+
+          # A physical serial pair so the physical loopback tests run instead
+          # of being skipped.
+          python tools/pty_loopback.py > /tmp/pts.txt 2>/dev/null &
+          PTY_PID=$!
+          for _ in $(seq 1 100); do
+            [ "$(wc -l < /tmp/pts.txt)" -ge 2 ] && break
+            sleep 0.1
+          done
+          mapfile -t PTS < /tmp/pts.txt
+          export VIRTUAL_SERIAL_LOOPBACK_A="${PTS[0]}"
+          export VIRTUAL_SERIAL_LOOPBACK_B="${PTS[1]}"
+          export VIRTUAL_SERIAL_REQUIRE_LOOPBACK=1
+
+          cd "$BOOST_SRC"
+          ./b2 -j2 headers
+          ./b2 -j2 libs/virtual_serial
+          status=$?
+          kill "$PTY_PID" 2>/dev/null || true
+          exit $status
+
+  # ---------------------------------------------------------------------------
   # Installed package consumed by a separate CMake project.
   # ---------------------------------------------------------------------------
   install-consumer:

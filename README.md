@@ -278,6 +278,11 @@ appear in the repository's **Security → Code scanning** tab. Code scanning on 
 so the job skips itself when the repository is private and no GHAS licence is
 available; making the repository public enables it without further changes.
 
+The `Boost.Build (Linux)` job copies the library into a Boost 1.92
+superproject, generates the `boost/` header tree, bootstraps `b2` and runs
+`b2 libs/virtual_serial`, so the Jamfiles are exercised against a real Boost
+tree rather than only kept for compatibility.
+
 A dedicated `Changelog fragments` job validates every file in `changelog.d/`,
 prints the section that the next release would contain, and runs the changelog
 tool's own unit tests. A `Commit authorship` job rejects attribution trailers,
