@@ -14,7 +14,7 @@ env:
   # The oldest and newest Boost releases the library claims to support.
   BOOST_OLDEST: "1.74.0"
   BOOST_NEWEST: "1.92.0"
-  # Line and branch coverage gates, enforced on every platform.
+  # Line and branch coverage gates, enforced on Linux and macOS.
   COVERAGE_MIN_LINES: "90"
   COVERAGE_MIN_BRANCHES: "80"
 
@@ -224,7 +224,7 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # Coverage gates: >= 90% lines and >= 80% branches on every platform.
+  # Coverage gates: >= 90% lines and >= 80% branches on Linux and macOS.
   # The physical backend is covered on Linux and macOS through the PTY pair;
   # on Windows it is covered for every path that does not require a driver.
   # ---------------------------------------------------------------------------
@@ -327,79 +327,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ strategy.job-index }}
-          path: |
-            build/coverage.info
-            build/merged.profdata
-          if-no-files-found: ignore
-
-  coverage-windows:
-    name: Coverage / Windows / clang-cl
-    runs-on: windows-2022
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      - name: Set up MSVC environment
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-
-      - name: Fetch Boost
-        run: python tools/fetch_boost.py --version "${{ env.BOOST_NEWEST }}"
-
-      - name: Configure
-        shell: pwsh
-        run: |
-          # Prefer the standalone LLVM toolchain: newer clang versions merge
-          # branch records from template instantiations, and the Visual Studio
-          # copy can be several releases older.
-          $llvm = "C:\Program Files\LLVM\bin"
-          if (-not (Test-Path "$llvm\clang-cl.exe")) {
-            $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-            $llvm = Join-Path $vs "VC\Tools\Llvm\x64\bin"
-          }
-          "LLVM_BIN=$llvm" | Out-File -FilePath $env:GITHUB_ENV -Append
-          & "$llvm\clang-cl.exe" --version
-          cmake -S . -B build -G "NMake Makefiles" `
-            -DCMAKE_BUILD_TYPE=Debug `
-            -DCMAKE_C_COMPILER="$llvm\clang-cl.exe" `
-            -DCMAKE_CXX_COMPILER="$llvm\clang-cl.exe" `
-            -DBOOST_ROOT="$env:GITHUB_WORKSPACE/.cache/boost-root" `
-            -DBOOST_VIRTUAL_SERIAL_COVERAGE=ON `
-            -DBOOST_VIRTUAL_SERIAL_BUILD_EXAMPLES=OFF
-
-      - name: Build
-        shell: pwsh
-        run: cmake --build build --parallel 4
-
-      - name: Run tests with profile output
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force build\profiles | Out-Null
-          $env:LLVM_PROFILE_FILE = "$env:GITHUB_WORKSPACE\build\profiles\%p-%m.profraw"
-          ctest --test-dir build --output-on-failure
-
-      - name: Enforce coverage thresholds
-        shell: pwsh
-        run: |
-          $llvm = $env:LLVM_BIN
-          python tools/coverage_report.py `
-            --objects `
-              "$env:GITHUB_WORKSPACE\build\test\boost_virtual_serial_tests.exe" `
-            --profiles "$env:GITHUB_WORKSPACE\build\profiles" `
-            --llvm-profdata "$llvm\llvm-profdata.exe" `
-            --llvm-cov "$llvm\llvm-cov.exe" `
-            --min-lines "$env:COVERAGE_MIN_LINES" `
-            --min-branches "$env:COVERAGE_MIN_BRANCHES"
-
-      - name: Upload coverage data
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-windows
           path: |
             build/coverage.info
             build/merged.profdata

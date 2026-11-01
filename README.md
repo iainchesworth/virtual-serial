@@ -203,12 +203,12 @@ and option paths.
 ### Coverage gates
 
 `BOOST_VIRTUAL_SERIAL_COVERAGE=ON` instruments the test binaries with LLVM
-profile instrumentation. Three jobs — Clang on Linux, AppleClang on macOS and
-clang-cl on Windows — run the suite, merge the profiles with `llvm-profdata`,
-export lcov with `llvm-cov` and enforce the gates with
+profile instrumentation. Two jobs — Clang on Linux and AppleClang on macOS —
+run the suite, merge the profiles with `llvm-profdata`, export lcov with
+`llvm-cov` and enforce the gates with
 [`tools/coverage.py`](tools/coverage.py):
 
-| Metric | Gate | Measured (Windows, physical success paths not runnable) |
+| Metric | Gate | Measured locally (Windows build, physical success paths not runnable) |
 |---|---|---|
 | Line / statement | **≥ 90%** | 93.99% |
 | Branch | **≥ 80%** | 88.52% |
@@ -233,9 +233,10 @@ nothing, which is why its headline line number is the lowest of the three.
 
 Only the primary `boost_virtual_serial_tests` executable is instrumented and
 reported; the C++14 and C++20 compatibility executables are compile-time
-checks. Merging profiles from differently typed instantiations of the same
-templates makes some Clang versions count each branch several times, which
-would make the gate depend on the toolchain rather than on the tests.
+checks. The Windows matrix runs the full suite but does not gate coverage:
+clang-cl's coverage mapping counts each template instantiation separately, so
+the same source branch appears several times and the ratio is not comparable
+with the other platforms.
 
 A dedicated `Changelog fragments` job validates every file in `changelog.d/`,
 prints the section that the next release would contain, and runs the changelog

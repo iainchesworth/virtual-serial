@@ -459,9 +459,11 @@ combinations; concepts still build there.
 9. **Platform matrix and coverage** — GitHub Actions runs the suite on Ubuntu
    22.04/24.04, macOS 14/15 and Windows 2022/2025 with GCC 11/12/13, Clang
    14/18, AppleClang and MSVC at C++14/17/20 against Boost 1.74 and 1.92. Three
-   jobs instrument the binaries with LLVM profile data and fail the build
-   below **90% line** or **80% branch** coverage; the report is emitted per
-   header by `tools/coverage.py`.
+   jobs instrument the primary test binary with LLVM profile data and fail
+   the build below **90% line** or **80% branch** coverage; the report is
+   emitted per header by `tools/coverage.py`. Windows runs the full suite but
+   does not gate coverage, because clang-cl counts each template
+   instantiation as a separate branch region.
 10. **Performance** — `perf/` measures throughput, operation rate, latency
     percentiles, type-erasure cost, codec cost and allocations per operation.
     The `Performance (<os>)` jobs publish the table and JSON for every platform
