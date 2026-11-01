@@ -1,0 +1,9 @@
+name: "VirtualSerial CodeQL configuration"
+
+# Boost is fetched into .cache/boost-root during the build.  Those headers are
+# third-party code, so keep them out of the analysis and out of the alert list.
+paths-ignore:
+  - .cache
+  - out
+  - build
+  - build-*
