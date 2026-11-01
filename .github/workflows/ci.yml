@@ -266,7 +266,7 @@ jobs:
           key: boost-${{ env.BOOST_NEWEST }}-${{ runner.os }}
 
       - name: Fetch Boost
-        run: python tools/fetch_boost.py --version "$BOOST_NEWEST"
+        run: python tools/fetch_boost.py --version "${{ env.BOOST_NEWEST }}"
 
       - name: Configure
         shell: bash
@@ -350,7 +350,7 @@ jobs:
           arch: x64
 
       - name: Fetch Boost
-        run: python tools/fetch_boost.py --version "$env:BOOST_NEWEST"
+        run: python tools/fetch_boost.py --version "${{ env.BOOST_NEWEST }}"
 
       - name: Configure
         shell: pwsh
@@ -436,7 +436,7 @@ jobs:
           key: boost-${{ env.BOOST_NEWEST }}-${{ runner.os }}
 
       - name: Fetch Boost
-        run: python tools/fetch_boost.py --version "$BOOST_NEWEST"
+        run: python tools/fetch_boost.py --version "${{ env.BOOST_NEWEST }}"
 
       - name: Configure
         shell: bash
@@ -554,7 +554,7 @@ jobs:
           key: boost-${{ env.BOOST_NEWEST }}-${{ runner.os }}
 
       - name: Fetch Boost
-        run: python tools/fetch_boost.py --version "$BOOST_NEWEST"
+        run: python tools/fetch_boost.py --version "${{ env.BOOST_NEWEST }}"
 
       - name: Build and install
         run: |
