@@ -1,0 +1,1 @@
+Commit authorship is now enforced: `tools/check_commit_message.py`, the opt-in `.githooks/commit-msg` hook and a `Commit authorship` CI job reject attribution trailers, generated-by statements, robot markers and commits that are not authored by the maintainer. The rules are documented in `CONTRIBUTING.md`.

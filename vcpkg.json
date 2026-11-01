@@ -1,7 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
-  "name": "asio_serial",
-  "version": "0.0.1",
+  "name": "boost-virtual-serial",
+  "version": "1.0.0",
+  "description": "Drop-in, mockable serial stream abstraction for Boost.Asio",
+  "homepage": "https://github.com/iainchesworth/virtual_serial",
+  "license": "BSL-1.0",
   "dependencies": [
     "boost-asio"
   ]

@@ -1,0 +1,577 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The oldest and newest Boost releases the library claims to support.
+  BOOST_OLDEST: "1.74.0"
+  BOOST_NEWEST: "1.92.0"
+  # Line and branch coverage gates, enforced on every platform.
+  COVERAGE_MIN_LINES: "90"
+  COVERAGE_MIN_BRANCHES: "80"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Cross-platform, cross-toolchain, cross-standard build and test matrix.
+  # "Older" and "newer" appear three times over: OS release, compiler version
+  # and C++ standard, plus the oldest and newest Boost releases.
+  # ---------------------------------------------------------------------------
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ---- Linux ------------------------------------------------------
+          - name: Ubuntu 22.04 / GCC 11 / C++14 / Boost 1.74
+            os: ubuntu-22.04
+            cc: gcc-11
+            cxx: g++-11
+            packages: g++-11
+            std: 14
+            boost: 1.74.0
+            loopback: true
+          - name: Ubuntu 22.04 / GCC 12 / C++17
+            os: ubuntu-22.04
+            cc: gcc-12
+            cxx: g++-12
+            packages: g++-12
+            std: 17
+            boost: 1.92.0
+            loopback: true
+          - name: Ubuntu 22.04 / Clang 14 / C++17
+            os: ubuntu-22.04
+            cc: clang-14
+            cxx: clang++-14
+            packages: clang-14
+            std: 17
+            boost: 1.92.0
+            loopback: true
+          - name: Ubuntu 24.04 / GCC 13 / C++17
+            os: ubuntu-24.04
+            cc: gcc-13
+            cxx: g++-13
+            packages: ""
+            std: 17
+            boost: 1.92.0
+            loopback: true
+          - name: Ubuntu 24.04 / Clang 18 / C++20
+            os: ubuntu-24.04
+            cc: clang-18
+            cxx: clang++-18
+            packages: clang-18
+            std: 20
+            boost: 1.92.0
+            loopback: true
+
+          # ---- macOS ------------------------------------------------------
+          - name: macOS 14 / AppleClang / C++14 / Boost 1.74
+            os: macos-14
+            cc: ""
+            cxx: ""
+            packages: ""
+            std: 14
+            boost: 1.74.0
+            loopback: true
+          - name: macOS 14 / AppleClang / C++17
+            os: macos-14
+            cc: ""
+            cxx: ""
+            packages: ""
+            std: 17
+            boost: 1.92.0
+            loopback: true
+          - name: macOS 15 / AppleClang / C++20
+            os: macos-15
+            cc: ""
+            cxx: ""
+            packages: ""
+            std: 20
+            boost: 1.92.0
+            loopback: true
+
+          # ---- Windows ----------------------------------------------------
+          - name: Windows 2022 / MSVC / C++14
+            os: windows-2022
+            cc: ""
+            cxx: ""
+            packages: ""
+            std: 14
+            boost: 1.92.0
+            loopback: false
+          - name: Windows 2022 / MSVC / C++17
+            os: windows-2022
+            cc: ""
+            cxx: ""
+            packages: ""
+            std: 17
+            boost: 1.92.0
+            loopback: false
+          - name: Windows 2025 / MSVC / C++17
+            os: windows-2025
+            cc: ""
+            cxx: ""
+            packages: ""
+            std: 17
+            boost: 1.92.0
+            loopback: false
+          - name: Windows 2025 / MSVC / C++20
+            os: windows-2025
+            cc: ""
+            cxx: ""
+            packages: ""
+            std: 20
+            boost: 1.92.0
+            loopback: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install compiler packages
+        if: matrix.packages != ''
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Cache Boost headers
+        uses: actions/cache@v4
+        with:
+          path: .cache/boost-root
+          key: boost-${{ matrix.boost }}-${{ runner.os }}
+
+      - name: Fetch Boost ${{ matrix.boost }}
+        run: python tools/fetch_boost.py --version ${{ matrix.boost }}
+
+      - name: Configure (GCC / Clang)
+        if: matrix.cc != ''
+        shell: bash
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+            -DBOOST_ROOT="$GITHUB_WORKSPACE/.cache/boost-root"
+
+      - name: Configure (MSVC / AppleClang)
+        if: matrix.cc == ''
+        shell: bash
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=${{ matrix.std }} \
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+            -DBOOST_ROOT="$GITHUB_WORKSPACE/.cache/boost-root"
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --config Release --parallel 4
+
+      # A real serial pair is created with pseudo terminals, so the physical
+      # backend is exercised end to end on Linux and macOS.
+      - name: Create serial loopback pair
+        if: matrix.loopback
+        shell: bash
+        run: |
+          python tools/pty_loopback.py > pty.txt 2>&1 &
+          echo $! > pty.pid
+          for attempt in $(seq 1 100); do
+            if [ "$(wc -l < pty.txt)" -ge 2 ]; then break; fi
+            sleep 0.1
+          done
+          test "$(wc -l < pty.txt)" -ge 2
+          echo "VIRTUAL_SERIAL_LOOPBACK_A=$(sed -n 1p pty.txt)" >> "$GITHUB_ENV"
+          echo "VIRTUAL_SERIAL_LOOPBACK_B=$(sed -n 2p pty.txt)" >> "$GITHUB_ENV"
+          echo "VIRTUAL_SERIAL_REQUIRE_LOOPBACK=1" >> "$GITHUB_ENV"
+          echo "loopback: $(sed -n 1p pty.txt) <-> $(sed -n 2p pty.txt)"
+
+      - name: Test
+        shell: bash
+        run: ctest --test-dir build --output-on-failure -C Release
+
+      # Runs the conformance matrix explicitly so the CI log shows every mode
+      # and every recovery path, not just a green ctest summary.
+      - name: Show async contract, serial modes and fault recovery
+        if: matrix.loopback
+        shell: bash
+        run: |
+          BIN=build/test/boost_virtual_serial_tests
+          "$BIN" --filter=async_
+          "$BIN" --filter=modes_
+          "$BIN" --filter=physical_loopback
+
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log-${{ strategy.job-index }}
+          path: build/Testing/Temporary/LastTest.log
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Coverage gates: >= 90% lines and >= 80% branches on every platform.
+  # The physical backend is covered on Linux and macOS through the PTY pair;
+  # on Windows it is covered for every path that does not require a driver.
+  # ---------------------------------------------------------------------------
+  coverage:
+    name: Coverage / ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux / Clang
+            os: ubuntu-24.04
+            packages: clang llvm
+            configure: >-
+              -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+            loopback: true
+          - name: macOS / AppleClang
+            os: macos-14
+            packages: ""
+            configure: ""
+            loopback: true
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install LLVM
+        if: matrix.packages != ''
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Cache Boost headers
+        uses: actions/cache@v4
+        with:
+          path: .cache/boost-root
+          key: boost-${{ env.BOOST_NEWEST }}-${{ runner.os }}
+
+      - name: Fetch Boost
+        run: python tools/fetch_boost.py --version "$BOOST_NEWEST"
+
+      - name: Configure
+        shell: bash
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBOOST_ROOT="$GITHUB_WORKSPACE/.cache/boost-root" \
+            -DBOOST_VIRTUAL_SERIAL_COVERAGE=ON \
+            -DBOOST_VIRTUAL_SERIAL_BUILD_EXAMPLES=OFF \
+            ${{ matrix.configure }}
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --parallel 4
+
+      - name: Create serial loopback pair
+        if: matrix.loopback
+        shell: bash
+        run: |
+          python tools/pty_loopback.py > pty.txt 2>&1 &
+          for attempt in $(seq 1 100); do
+            if [ "$(wc -l < pty.txt)" -ge 2 ]; then break; fi
+            sleep 0.1
+          done
+          test "$(wc -l < pty.txt)" -ge 2
+          echo "VIRTUAL_SERIAL_LOOPBACK_A=$(sed -n 1p pty.txt)" >> "$GITHUB_ENV"
+          echo "VIRTUAL_SERIAL_LOOPBACK_B=$(sed -n 2p pty.txt)" >> "$GITHUB_ENV"
+          echo "VIRTUAL_SERIAL_REQUIRE_LOOPBACK=1" >> "$GITHUB_ENV"
+
+      - name: Run tests with profile output
+        shell: bash
+        run: |
+          mkdir -p build/profiles
+          export LLVM_PROFILE_FILE="$GITHUB_WORKSPACE/build/profiles/%p-%m.profraw"
+          ctest --test-dir build --output-on-failure
+
+      - name: Enforce coverage thresholds
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            LLVM_COV=$(xcrun --find llvm-cov)
+            LLVM_PROFDATA=$(xcrun --find llvm-profdata)
+          else
+            LLVM_COV=$(command -v llvm-cov || ls /usr/lib/llvm-*/bin/llvm-cov | sort -V | tail -1)
+            LLVM_PROFDATA=$(command -v llvm-profdata || ls /usr/lib/llvm-*/bin/llvm-profdata | sort -V | tail -1)
+          fi
+          python tools/coverage_report.py \
+            --objects \
+              "$GITHUB_WORKSPACE/build/test/boost_virtual_serial_tests" \
+              "$GITHUB_WORKSPACE/build/test/boost_virtual_serial_cxx14_headers" \
+              "$GITHUB_WORKSPACE/build/test/boost_virtual_serial_cxx20_concepts" \
+            --profiles "$GITHUB_WORKSPACE/build/profiles" \
+            --llvm-profdata "$LLVM_PROFDATA" \
+            --llvm-cov "$LLVM_COV" \
+            --min-lines "$COVERAGE_MIN_LINES" \
+            --min-branches "$COVERAGE_MIN_BRANCHES"
+
+      - name: Upload coverage data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ strategy.job-index }}
+          path: |
+            build/coverage.info
+            build/merged.profdata
+          if-no-files-found: ignore
+
+  coverage-windows:
+    name: Coverage / Windows / clang-cl
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Fetch Boost
+        run: python tools/fetch_boost.py --version "$env:BOOST_NEWEST"
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $llvm = Join-Path $vs "VC\Tools\Llvm\x64\bin"
+          "LLVM_BIN=$llvm" | Out-File -FilePath $env:GITHUB_ENV -Append
+          cmake -S . -B build -G "NMake Makefiles" `
+            -DCMAKE_BUILD_TYPE=Debug `
+            -DCMAKE_C_COMPILER="$llvm\clang-cl.exe" `
+            -DCMAKE_CXX_COMPILER="$llvm\clang-cl.exe" `
+            -DBOOST_ROOT="$env:GITHUB_WORKSPACE/.cache/boost-root" `
+            -DBOOST_VIRTUAL_SERIAL_COVERAGE=ON `
+            -DBOOST_VIRTUAL_SERIAL_BUILD_EXAMPLES=OFF
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build --parallel 4
+
+      - name: Run tests with profile output
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build\profiles | Out-Null
+          $env:LLVM_PROFILE_FILE = "$env:GITHUB_WORKSPACE\build\profiles\%p-%m.profraw"
+          ctest --test-dir build --output-on-failure
+
+      - name: Enforce coverage thresholds
+        shell: pwsh
+        run: |
+          $llvm = $env:LLVM_BIN
+          python tools/coverage_report.py `
+            --objects `
+              "$env:GITHUB_WORKSPACE\build\test\boost_virtual_serial_tests.exe" `
+              "$env:GITHUB_WORKSPACE\build\test\boost_virtual_serial_cxx14_headers.exe" `
+              "$env:GITHUB_WORKSPACE\build\test\boost_virtual_serial_cxx20_concepts.exe" `
+            --profiles "$env:GITHUB_WORKSPACE\build\profiles" `
+            --llvm-profdata "$llvm\llvm-profdata.exe" `
+            --llvm-cov "$llvm\llvm-cov.exe" `
+            --min-lines "$env:COVERAGE_MIN_LINES" `
+            --min-branches "$env:COVERAGE_MIN_BRANCHES"
+
+      - name: Upload coverage data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-windows
+          path: |
+            build/coverage.info
+            build/merged.profdata
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Performance: run the benchmark suite on every OS, publish the table to the
+  # job summary, upload the JSON and enforce the floors in perf/floors.json.
+  # ---------------------------------------------------------------------------
+  perf:
+    name: Performance (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+            exe: build-perf/perf/virtual_serial_perf
+          - name: macOS
+            os: macos-15
+            exe: build-perf/perf/virtual_serial_perf
+          - name: Windows
+            os: windows-2025
+            exe: build-perf/perf/Release/virtual_serial_perf.exe
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Cache Boost headers
+        uses: actions/cache@v4
+        with:
+          path: .cache/boost-root
+          key: boost-${{ env.BOOST_NEWEST }}-${{ runner.os }}
+
+      - name: Fetch Boost
+        run: python tools/fetch_boost.py --version "$BOOST_NEWEST"
+
+      - name: Configure
+        shell: bash
+        run: |
+          cmake -S . -B build-perf \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBOOST_ROOT="$GITHUB_WORKSPACE/.cache/boost-root" \
+            -DBOOST_VIRTUAL_SERIAL_BUILD_TESTS=OFF \
+            -DBOOST_VIRTUAL_SERIAL_BUILD_EXAMPLES=OFF \
+            -DBOOST_VIRTUAL_SERIAL_BUILD_PERF=ON
+
+      - name: Build
+        shell: bash
+        run: cmake --build build-perf --config Release --parallel 4
+
+      - name: Run benchmarks
+        shell: bash
+        run: |
+          "${{ matrix.exe }}" --quick --output "perf-${{ matrix.name }}.json"
+
+      - name: Render report and enforce floors
+        shell: bash
+        run: |
+          python tools/perf_report.py "perf-${{ matrix.name }}.json" \
+            --floors perf/floors.json \
+            --output "perf-report-${{ matrix.name }}.md"
+
+      - name: Publish report
+        if: always()
+        shell: bash
+        run: |
+          REPORT="perf-report-${{ matrix.name }}.md"
+          if [ -f "$REPORT" ]; then
+            cat "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-${{ matrix.name }}
+          path: |
+            perf-${{ matrix.name }}.json
+            perf-report-${{ matrix.name }}.md
+
+  # ---------------------------------------------------------------------------
+  # Commit authorship: the maintainer is the only author, and no commit may
+  # carry attribution trailers or generated-by statements.
+  # ---------------------------------------------------------------------------
+  commits:
+    name: Commit authorship
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Check authors and messages
+        env:
+          MAINTAINER_EMAIL: iain.chesworth@gmail.com
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="origin/${{ github.base_ref }}..HEAD"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          else
+            RANGE="HEAD"
+          fi
+          python tools/check_commit_message.py --range "$RANGE" \
+            --author-email "$MAINTAINER_EMAIL"
+
+  # ---------------------------------------------------------------------------
+  # Changelog fragments: validate every file and preview the next section.
+  # ---------------------------------------------------------------------------
+  changelog:
+    name: Changelog fragments
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate CHANGELOG.md and fragments
+        run: python tools/changelog.py --check
+
+      - name: Preview the unreleased section
+        run: python tools/changelog.py --dry-run
+
+      - name: Test the changelog tooling
+        run: python -m unittest discover -s tools -p "test_*.py" -v
+
+  # ---------------------------------------------------------------------------
+  # Installed package consumed by a separate CMake project.
+  # ---------------------------------------------------------------------------
+  install-consumer:
+    name: Install and consume the package
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Cache Boost headers
+        uses: actions/cache@v4
+        with:
+          path: .cache/boost-root
+          key: boost-${{ env.BOOST_NEWEST }}-${{ runner.os }}
+
+      - name: Fetch Boost
+        run: python tools/fetch_boost.py --version "$BOOST_NEWEST"
+
+      - name: Build and install
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBOOST_ROOT="$GITHUB_WORKSPACE/.cache/boost-root" \
+            -DBOOST_VIRTUAL_SERIAL_BUILD_TESTS=OFF \
+            -DBOOST_VIRTUAL_SERIAL_BUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/prefix"
+          cmake --build build --parallel 4
+          cmake --install build
+
+      - name: Build and run a consumer
+        run: |
+          cmake -S test/package -B consumer \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/prefix" \
+            -DBOOST_ROOT="$GITHUB_WORKSPACE/.cache/boost-root"
+          cmake --build consumer --parallel 4
+          ./consumer/consumer

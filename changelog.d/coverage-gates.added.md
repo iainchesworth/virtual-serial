@@ -1,0 +1,1 @@
+Line and branch coverage is measured with LLVM profile data and enforced on Linux, macOS and Windows at a minimum of 90% of lines and 80% of branches, through `tools/coverage.py`, `tools/coverage_report.py` and the `BOOST_VIRTUAL_SERIAL_COVERAGE` build option.

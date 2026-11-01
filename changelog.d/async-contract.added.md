@@ -1,0 +1,1 @@
+`test/asio/async_contract_test.cpp` asserts the Asio stream concepts for every backend and front end and proves work tracking, no-inline and exactly-once completion, associated-executor delivery, strand serialisation over four threads, generic composition and the `detached`, `redirect_error` and `use_future` completion tokens.

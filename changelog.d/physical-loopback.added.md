@@ -1,0 +1,1 @@
+A physical-loopback suite that exchanges data over two real serial devices, plus `tools/pty_loopback.py` to create the pair on Linux and macOS. `VIRTUAL_SERIAL_REQUIRE_LOOPBACK=1` turns a missing pair into a failure rather than a skip.

@@ -1,0 +1,46 @@
+@PACKAGE_INIT@
+
+# Boost.VirtualSerial is header-only, but it needs the Boost.Asio headers.
+# Prefer an already imported Boost, then look for the headers directly (the
+# usual case when this library is installed next to a Boost tree), and only
+# then fall back to find_package.
+if(NOT TARGET Boost::headers)
+  find_path(VIRTUAL_SERIAL_BOOST_INCLUDE_DIR boost/asio.hpp
+    HINTS
+      "${BOOST_ROOT}"
+      "$ENV{BOOST_ROOT}"
+      "${PACKAGE_PREFIX_DIR}"
+    PATH_SUFFIXES include)
+
+  if(VIRTUAL_SERIAL_BOOST_INCLUDE_DIR)
+    add_library(Boost::headers INTERFACE IMPORTED)
+    set_target_properties(Boost::headers PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${VIRTUAL_SERIAL_BOOST_INCLUDE_DIR}")
+    unset(VIRTUAL_SERIAL_BOOST_INCLUDE_DIR CACHE)
+  else()
+    # The FindBoost module is deprecated/removed in recent CMake releases;
+    # keep it usable without forcing the consumer's policy settings.
+    if(POLICY CMP0167)
+      cmake_policy(PUSH)
+      cmake_policy(SET CMP0167 OLD)
+    endif()
+    find_package(Boost 1.74 QUIET)
+    if(POLICY CMP0167)
+      cmake_policy(POP)
+    endif()
+
+    if(NOT TARGET Boost::headers AND TARGET Boost::boost)
+      add_library(Boost::headers ALIAS Boost::boost)
+    endif()
+    if(NOT TARGET Boost::headers)
+      set(boost_virtual_serial_FOUND FALSE)
+      set(boost_virtual_serial_NOT_FOUND_MESSAGE
+        "Boost.Asio headers were not found. Set BOOST_ROOT, add Boost to CMAKE_PREFIX_PATH, or call find_package(Boost) before find_package(boost_virtual_serial).")
+      return()
+    endif()
+  endif()
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/boost_virtual_serial-targets.cmake")
+
+check_required_components(boost_virtual_serial)

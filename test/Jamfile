@@ -1,0 +1,54 @@
+# Boost.VirtualSerial tests Jamfile
+#
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# https://www.boost.org/LICENSE_1_0.txt)
+
+import testing ;
+
+project
+    : requirements
+        <cxxstd>17
+        <warnings>extra
+    ;
+
+run
+    main.cpp
+    unit/error_test.cpp
+    unit/serial_config_test.cpp
+    unit/buffer_range_test.cpp
+    unit/telnet_codec_test.cpp
+    unit/mock_port_test.cpp
+    unit/mock_fixture_test.cpp
+    unit/any_serial_port_test.cpp
+    unit/component_test.cpp
+    unit/option_matrix_test.cpp
+    unit/backend_direct_test.cpp
+    unit/factory_test.cpp
+    unit/serial_config_edges_test.cpp
+    unit/branch_matrix_test.cpp
+    integration/tcp_bridge_test.cpp
+    integration/udp_bridge_test.cpp
+    integration/rfc2217_test.cpp
+    integration/rfc2217_protocol_test.cpp
+    integration/physical_loopback_test.cpp
+    integration/serial_modes_test.cpp
+    asio/async_contract_test.cpp
+    :
+    :
+    : # requirements
+        <define>_WIN32_WINNT=0x0601
+        <toolset>gcc:<linkflags>-pthread
+        <toolset>clang:<linkflags>-pthread
+    ;
+
+# The headers must also compile as C++14, which is the level advertised to
+# the Boost superproject.
+compile cxx14_headers.cpp : : : <cxxstd>14 ;
+
+# The same types satisfy the C++20 concepts, checked at compile time when
+# the toolset supports them.
+compile cxx20_concepts.cpp : : : <cxxstd>20 ;
+
+run concept/concepts_test.cpp main.cpp : : : <cxxstd>20 ;
+run coroutine/awaitable_test.cpp main.cpp : : : <cxxstd>20 <toolset>gcc:<cxxflags>-fcoroutines ;

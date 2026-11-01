@@ -1,0 +1,392 @@
+[library Boost.VirtualSerial
+    [quickbook 1.7]
+    [compatibility mode=1.1]
+    [copyright 2026 VirtualSerial contributors]
+    [license
+        Distributed under the Boost Software License, Version 1.0.
+        (See accompanying file LICENSE_1_0.txt or copy at
+        [@https://www.boost.org/LICENSE_1_0.txt])
+    ]
+    [authors [VirtualSerial contributors, ""]]
+    [category concurrent]
+    [purpose Serial stream abstraction for Boost.Asio]
+    [id virtual_serial]
+    [dirname virtual_serial]
+    [pagename virtual_serial]
+]
+
+[section:introduction Introduction]
+
+[heading What is Boost.VirtualSerial?]
+
+Boost.VirtualSerial provides a serial stream with the same interface as
+`boost::asio::serial_port`, but with a transport that can be selected at
+compile time or at run time.  The available transports are:
+
+[variablelist
+    [[physical port][A real operating system serial port, implemented with
+        `boost::asio::serial_port`.]]
+    [[RFC 2217][A serial port published by a Telnet Com Port Control access
+        server; baud rate, framing and flow control are applied on the
+        remote device.]]
+    [[raw TCP][A serial device exposed as a plain TCP byte stream.]]
+    [[UDP][A serial device exposed as connected datagrams.]]
+    [[mock fixture][A deterministic in-memory port with data injection,
+        fault injection and a virtual clock.]]
+]
+
+[heading Why not use `boost::asio::serial_port` directly?]
+
+`boost::asio::serial_port` is a concrete type: it owns its native handle and
+there is no supported way to substitute the transport.  As a consequence,
+tests require real hardware, remote serial consoles cannot be reached with
+the same code, and error paths such as framing errors, overruns and cable
+pulls cannot be reproduced on demand.
+
+Boost.VirtualSerial keeps the Asio programming model - the same
+`read_some`/`write_some`/`async_read_some`/`async_write_some` quartet, the
+same `serial_port_base` option objects, the same executor semantics - and
+moves the transport behind a seam.
+
+[endsect]
+
+
+[section:quickstart Quick start]
+
+[heading Physical port]
+
+[c++]
+
+    #include <boost/virtual_serial.hpp>
+    #include <boost/asio/io_context.hpp>
+    #include <boost/asio/read.hpp>
+    #include <boost/asio/write.hpp>
+
+    int main()
+    {
+        boost::asio::io_context io;
+        boost::virtual_serial::basic_serial_port<
+            boost::virtual_serial::physical_port> port(io.get_executor());
+
+        port.set_option(boost::asio::serial_port_base::baud_rate(115200));
+        port.set_option(boost::virtual_serial::read_timeout(
+            std::chrono::milliseconds(500)));
+
+        port.open("COM3");
+
+        boost::asio::write(port, boost::asio::buffer("AT\r\n", 4));
+
+        char reply[128];
+        boost::system::error_code ec;
+        const std::size_t n = port.read_some(boost::asio::buffer(reply), ec);
+    }
+
+[heading Selection by URI]
+
+[c++]
+
+    auto port = boost::virtual_serial::make_serial_port(
+        io.get_executor(), "rfc2217://lab-host:7001?baud=115200");
+
+`make_serial_port` returns a `boost::virtual_serial::any_serial_port`, which
+accepts exactly the same operations as the compile-time form above.
+
+[endsect]
+
+
+[section:mock Testing with the mock fixture]
+
+The mock backend is a complete Asio stream backed by memory.  It is used
+exactly like a physical port:
+
+[c++]
+
+    auto mock = boost::virtual_serial::make_mock_port(io.get_executor());
+    boost::virtual_serial::any_serial_port port(io.get_executor(), mock);
+
+    mock->set_write_handler([mock](const unsigned char*, std::size_t) {
+        mock->inject_read("OK\r\n");
+    });
+
+    port.open("at-modem");
+    boost::asio::write(port, boost::asio::buffer("AT\r\n", 4));
+
+[heading Data injection]
+
+[variablelist
+    [[`inject_read`][Push raw bytes or a string into the receive path.]]
+    [[`inject_line`][Push a line followed by CRLF.]]
+    [[`inject_eof`][Report end of stream once buffered data is consumed.]]
+]
+
+[heading Fault injection]
+
+[variablelist
+    [[`inject_framing_error`][The next read reports
+        `boost::virtual_serial::error::framing_error`.]]
+    [[`inject_parity_error`][The next read reports a parity error.]]
+    [[`inject_overrun`][The next read reports a FIFO overrun.]]
+    [[`inject_break`][The next read reports a break condition.]]
+    [[`inject_corrupt_byte`][Replaces the next byte and reports a line
+        error.]]
+    [[`inject_hangup`][Every subsequent read reports a hangup; the port stays
+        open.]]
+    [[`inject_disconnect`][Drops the port and fails reads with
+        `error::not_connected`.]]
+    [[`inject_error`][Reports an arbitrary error on the next read.]]
+    [[`inject_write_error`][Fails the next write.]]
+]
+
+Buffer overflows are modelled with a bounded FIFO:
+
+[c++]
+
+    mock->set_read_capacity(64);
+    mock->set_overflow_policy(
+        boost::virtual_serial::overflow_policy::drop_oldest);
+
+[heading Clocked data]
+
+With pacing enabled, every injected byte receives a due time derived from the
+configured framing, and becomes readable only when the virtual clock reaches
+it.  The clock is advanced by the test, never by the scheduler:
+
+[c++]
+
+    mock->set_pacing(true);
+    mock->inject_read("GO");
+
+    mock->step();                              // deliver exactly one byte
+    mock->advance(mock->byte_duration());      // deliver the next one
+    mock->flush_input();                       // deliver everything
+
+[endsect]
+
+
+[section:backends Backend reference]
+
+[table Backends
+    [[Backend][Header][Transport][Serial options]]
+    [[`physical_port`][`backends/physical_port.hpp`][`serial_port`][applied to the UART]]
+    [[`mock_port`][`backends/mock_port.hpp`][memory][stored and validated]]
+    [[`rfc2217_port`][`backends/rfc2217_port.hpp`][TCP + Telnet 44][applied on the server]]
+    [[`tcp_bridge_port`][`backends/tcp_bridge_port.hpp`][TCP][stored only]]
+    [[`udp_bridge_port`][`backends/udp_bridge_port.hpp`][UDP][stored only]]
+]
+
+[heading RFC 2217 client]
+
+`rfc2217_port` performs Telnet option 44 negotiation, sends
+`SET-BAUDRATE`, `SET-DATASIZE`, `SET-PARITY`, `SET-STOPSIZE` and
+`SET-CONTROL` in the recommended order, requests line state notifications
+for framing, parity, overrun and break errors, and translates
+`NOTIFY-LINESTATE` into the same error values as the other backends.  Data is
+quoted and unquoted according to the Telnet IAC rules.
+
+[endsect]
+
+
+[section:options Options and timeouts]
+
+The five Asio serial options are accepted directly:
+
+[c++]
+
+    port.set_option(boost::asio::serial_port_base::baud_rate(115200));
+    port.set_option(boost::asio::serial_port_base::character_size(8));
+    port.set_option(boost::asio::serial_port_base::parity(
+        boost::asio::serial_port_base::parity::even));
+    port.set_option(boost::asio::serial_port_base::stop_bits(
+        boost::asio::serial_port_base::stop_bits::one));
+    port.set_option(boost::asio::serial_port_base::flow_control(
+        boost::asio::serial_port_base::flow_control::none));
+
+In addition, two front-end options are enforced for every backend:
+
+[c++]
+
+    port.set_option(boost::virtual_serial::read_timeout(
+        std::chrono::milliseconds(250)));
+    port.set_option(boost::virtual_serial::write_timeout(
+        std::chrono::milliseconds(250)));
+
+An unknown option type reports
+`boost::virtual_serial::error::unsupported_option` at run time instead of
+failing to compile.
+
+[endsect]
+
+[section:coroutines Coroutines (C++20)]
+
+Every port models the Asio async stream concepts, so coroutine tokens compose
+directly: [^co_await port.async_read_some(buffers, boost::asio::use_awaitable)]
+works without a wrapper.  The optional
+[^boost/virtual_serial/awaitable.hpp] header adds the helpers [^read_some],
+[^read_exactly], [^write_all] and [^read_until], which run on the port's
+executor; a timed-out read throws [^boost::system::system_error] with
+[^virtual_serial::error::timeout].  The helpers are compiled only when
+[^BOOST_VIRTUAL_SERIAL_HAS_COROUTINES] is set, so C++14 builds are unaffected.
+
+[endsect]
+
+[section:concepts Concepts (C++20)]
+
+[^boost/virtual_serial/concepts.hpp] defines [^AsyncSerialStream],
+[^SerialBackend] and [^SerialOption].  Every front end and backend satisfies
+the first; the second adds the backend-only operations; the third accepts the
+forwarded option objects.  The concepts are optional diagnostics and are
+available only when [^BOOST_VIRTUAL_SERIAL_HAS_CONCEPTS] is set.
+
+[endsect]
+
+
+[section:errors Error handling]
+
+[variablelist
+    [[`error::not_connected`][The port is closed, or the peer went away.]]
+    [[`error::already_open`][`open` was called on an open port.]]
+    [[`error::bad_target`][The target string could not be parsed.]]
+    [[`error::invalid_option`][The option value is out of range.]]
+    [[`error::unsupported_option`][The backend cannot represent the option.]]
+    [[`error::framing_error`][UART framing error.]]
+    [[`error::parity_error`][UART parity error.]]
+    [[`error::overrun`][Receive buffer overrun.]]
+    [[`error::break_detected`][Break condition on the line.]]
+    [[`error::hangup`][Carrier lost.]]
+    [[`error::timeout`][Front-end read or write timeout.]]
+    [[`error::protocol_error`][Malformed transport framing.]]
+    [[`error::queue_full`][The mock FIFO rejected injected bytes.]]
+    [[`error::aborted`][The operation was cancelled.]]
+    [[`error::not_supported`][The backend does not implement the feature.]]
+]
+
+`boost::system::is_error_code_enum` is specialised for
+`boost::virtual_serial::error`, so the values convert to and compare with
+`boost::system::error_code`.
+
+[endsect]
+
+
+[section:threading Threading]
+
+Distinct port objects may be used from different threads.  A port shared
+between threads must be serialised, typically with a strand, exactly as with
+`boost::asio::serial_port`.  Completion handlers are invoked through their
+associated executor with `boost::asio::post`, so a handler bound to a strand
+stays on the strand and a handler bound to `use_future` produces a future.
+
+[endsect]
+
+
+[section:reference Reference]
+
+[heading `basic_serial_port`]
+
+[c++]
+
+    template <class Backend>
+    class basic_serial_port
+    {
+    public:
+        using executor_type = typename Backend::executor_type;
+
+        basic_serial_port(executor_type, std::shared_ptr<Backend>);
+        explicit basic_serial_port(executor_type);
+
+        executor_type get_executor() const noexcept;
+        bool is_open() const noexcept;
+        backend_kind backend() const noexcept;
+        serial_config config() const;
+
+        void open(const std::string&);
+        void open(const std::string&, boost::system::error_code&);
+        void close();
+        void close(boost::system::error_code&);
+        void cancel();
+        void cancel(boost::system::error_code&);
+
+        template <class MutableBufferSequence>
+        std::size_t read_some(const MutableBufferSequence&,
+            boost::system::error_code&);
+
+        template <class ConstBufferSequence>
+        std::size_t write_some(const ConstBufferSequence&,
+            boost::system::error_code&);
+
+        template <class MutableBufferSequence, class CompletionToken>
+        auto async_read_some(const MutableBufferSequence&, CompletionToken&&);
+
+        template <class ConstBufferSequence, class CompletionToken>
+        auto async_write_some(const ConstBufferSequence&, CompletionToken&&);
+
+        template <class Option> void set_option(const Option&);
+        template <class Option> void get_option(Option&) const;
+    };
+
+[heading `any_serial_port`]
+
+[c++]
+
+    using any_serial_port = basic_serial_port<detail::erased_backend>;
+
+[heading Factory functions]
+
+[c++]
+
+    std::shared_ptr<mock_port> make_mock_port(
+        const boost::asio::any_io_executor&,
+        const serial_config& = serial_config());
+
+    any_serial_port make_serial_port(
+        const boost::asio::any_io_executor&, const serial_config&);
+
+    any_serial_port make_serial_port(
+        const boost::asio::any_io_executor&, const std::string& uri);
+
+[endsect]
+
+
+[section:tests Tests]
+
+The test suite covers the option model, URI grammar, buffer normalisation,
+the Telnet/RFC 2217 codec, every mock injection mode, the type-erased front
+end and end-to-end loopback tests against in-process TCP, UDP and RFC 2217
+servers.  Every public header is also compiled as C++14, and the C++20
+concept conformance of every front end and backend is asserted separately.
+
+An asynchronous contract suite asserts the Asio stream concepts at compile
+time and proves at run time that an outstanding operation keeps
+[^io_context] alive, that handlers are never invoked inline, run exactly once
+and on their associated executor, that a strand serialises handlers across
+threads, and that [^async_read], [^async_write], [^async_read_until] and a
+user-written [^async_compose] operation work on the type-erased port.
+
+Two further suites exist for continuous integration: a serial-mode matrix that
+drives every backend in both directions with fault injection and recovery, and
+a physical-loopback suite that opens a real serial pair (created with
+[^tools/pty_loopback.py] on Linux and macOS).  Coverage is measured with LLVM
+profile data and gated at 90% of lines and 80% of branches on Linux, macOS and
+Windows.
+
+[endsect]
+
+[section:performance Performance]
+
+The [^perf] directory contains an opt-in benchmark suite (enable it with
+[^BOOST_VIRTUAL_SERIAL_BUILD_PERF]=ON) that measures synchronous and
+asynchronous throughput, operation rate, latency percentiles, the cost of
+type erasure, TCP loopback throughput and round-trip time, the Telnet codec and
+allocations per asynchronous operation.  Results are JSON, rendered and gated by
+[^tools/perf_report.py]; continuous integration publishes a table per platform
+and enforces [^perf/floors.json].
+
+[endsect]
+
+
+[section:acknowledgements Acknowledgements]
+
+The Asio stream interface, the executor model and the serial option
+vocabulary are the work of the Boost.Asio author and maintainers.  The RFC
+2217 implementation follows RFC 2217 by G. Clark.
+
+[endsect]

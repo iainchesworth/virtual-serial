@@ -1,0 +1,25 @@
+# Boost.VirtualSerial examples Jamfile
+#
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# https://www.boost.org/LICENSE_1_0.txt)
+
+import testing ;
+
+project
+    : requirements
+        <cxxstd>17
+        <warnings>extra
+    ;
+
+# Self-contained examples are run as tests.
+run mock_fixture_example.cpp ;
+run backend_switcher_example.cpp ;
+
+# Examples that need a device or a network peer are only built.
+exe physical_echo_example : physical_echo_example.cpp ;
+exe rfc2217_client_example : rfc2217_client_example.cpp ;
+exe tcp_bridge_example : tcp_bridge_example.cpp ;
+
+run concepts_demo_example.cpp : : : <cxxstd>20 ;
+run awaitable_echo_example.cpp : : : <cxxstd>20 <toolset>gcc:<cxxflags>-fcoroutines ;

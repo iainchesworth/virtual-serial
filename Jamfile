@@ -1,0 +1,23 @@
+# Boost.VirtualSerial library Jamfile
+#
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# https://www.boost.org/LICENSE_1_0.txt)
+#
+# Inside a Boost superproject checkout this directory can be built with:
+#
+#   b2 libs/virtual_serial
+#   b2 libs/virtual_serial/test//boost_virtual_serial_tests
+#   b2 libs/virtual_serial/example
+#
+# The CMake build in CMakeLists.txt is the primary, standalone build; this
+# Jamfile hierarchy keeps the library compatible with Boost.Build so it can
+# live in the Boost tree unchanged.
+
+build-project test ;
+build-project example ;
+
+# The documentation is built on demand, because it needs the Quickbook
+# toolchain:
+#   b2 libs/virtual_serial/doc
+# build-project doc ;

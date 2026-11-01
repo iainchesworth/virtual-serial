@@ -1,0 +1,19 @@
+# Boost.VirtualSerial documentation Jamfile
+#
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# https://www.boost.org/LICENSE_1_0.txt)
+#
+# Building the Quickbook sources requires the Boost documentation toolchain
+# (quickbook, xslproc/xsltproc and the BoostBook stylesheets), which ships
+# with the Boost superproject.
+
+import quickbook ;
+
+boostbook standalone
+    : virtual_serial
+    : <xsl:param>boost.root=../../..
+      <xsl:param>chapter.autolabel=1
+      <xsl:param>chunk.section.depth=2
+      <xsl:param>toc.max.depth=2
+    ;

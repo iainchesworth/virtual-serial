@@ -1,0 +1,16 @@
+{
+  "mock_sync_write": { "min": 20.0, "unit": "MB/s" },
+  "mock_sync_read": { "min": 20.0, "unit": "MB/s" },
+  "erased_sync_write": { "min": 10.0, "unit": "MB/s" },
+  "erasure_overhead": { "max": 5.0, "unit": "x" },
+  "mock_async_read_ops": { "min": 10000, "unit": "ops/s" },
+  "mock_async_write_ops": { "min": 10000, "unit": "ops/s" },
+  "mock_async_latency": { "max": 2000, "unit": "us" },
+  "tcp_sync_write": { "min": 1.0, "unit": "MB/s" },
+  "tcp_pingpong": { "max": 5000, "unit": "us" },
+  "tcp_pingpong_rps": { "min": 200, "unit": "ops/s" },
+  "telnet_encode": { "min": 10.0, "unit": "MB/s" },
+  "telnet_decode": { "min": 10.0, "unit": "MB/s" },
+  "async_allocations_per_op": { "max": 16, "unit": "allocs/op" },
+  "async_bytes_per_op": { "max": 4096, "unit": "B/op" }
+}

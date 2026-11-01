@@ -1,0 +1,16 @@
+# Boost.VirtualSerial build Jamfile
+#
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# https://www.boost.org/LICENSE_1_0.txt)
+#
+# The library is header-only: there is no compilation unit.  Declaring the
+# target with <build>no keeps `b2` from trying to compile or link anything
+# while still letting boost-install perform the header installation when
+# the library is built as part of a Boost release.
+
+import ../../config/checks/config : requires ;
+
+lib boost_virtual_serial : : <build>no ;
+
+boost-install boost_virtual_serial ;

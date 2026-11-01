@@ -1,0 +1,11 @@
+import testing ;
+
+project boost/virtual_serial/perf
+  : requirements
+      <library>/boost/virtual_serial//boost_virtual_serial
+      <toolset>gcc:<linkflags>-pthread
+      <toolset>clang:<linkflags>-pthread
+      <define>BOOST_ALL_NO_LIB
+  ;
+
+exe virtual_serial_perf : perf_main.cpp ;

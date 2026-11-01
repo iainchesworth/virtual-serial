@@ -1,0 +1,1 @@
+A serial-mode matrix suite that drives every backend in both directions, synchronously and asynchronously, injects each line fault and proves the next read recovers, and repeats the exercise for timeouts, peer loss and reconnects.

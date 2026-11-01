@@ -1,0 +1,9 @@
+{
+  "key": "virtual_serial",
+  "name": "VirtualSerial",
+  "description": "Drop-in, mockable serial stream abstraction for Boost.Asio: one interface over physical ports, RFC 2217, raw TCP/UDP bridges and a deterministic in-memory fixture with data, fault and clocked injection.",
+  "authors": ["Iain Chesworth"],
+  "maintainers": ["Iain Chesworth"],
+  "category": ["Input/Output", "Concurrent Programming", "Networking"],
+  "cxxstd": "14"
+}
