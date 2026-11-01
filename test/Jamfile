@@ -44,11 +44,11 @@ run
 
 # The headers must also compile as C++14, which is the level advertised to
 # the Boost superproject.
-compile cxx14_headers.cpp : : : <cxxstd>14 ;
+compile cxx14_headers.cpp : <cxxstd>14 ;
 
 # The same types satisfy the C++20 concepts, checked at compile time when
 # the toolset supports them.
-compile cxx20_concepts.cpp : : : <cxxstd>20 ;
+compile cxx20_concepts.cpp : <cxxstd>20 ;
 
 run concept/concepts_test.cpp main.cpp : : : <cxxstd>20 ;
 run coroutine/awaitable_test.cpp main.cpp : : : <cxxstd>20 <toolset>gcc:<cxxflags>-fcoroutines ;
