@@ -92,6 +92,16 @@
       }
     },
     {
+      "name": "sanitize",
+      "displayName": "Sanitizers (ASan + UBSan)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BOOST_VIRTUAL_SERIAL_SANITIZERS": "address;undefined",
+        "BOOST_VIRTUAL_SERIAL_BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
       "name": "linux-debug",
       "displayName": "Linux Debug",
       "inherits": "base",
@@ -170,6 +180,10 @@
       "configurePreset": "perf"
     },
     {
+      "name": "sanitize",
+      "configurePreset": "sanitize"
+    },
+    {
       "name": "linux-debug",
       "configurePreset": "linux-debug"
     },
@@ -239,6 +253,17 @@
     {
       "name": "macos-release",
       "configurePreset": "macos-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "sanitize",
+      "configurePreset": "sanitize",
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+      },
       "output": {
         "outputOnFailure": true
       }

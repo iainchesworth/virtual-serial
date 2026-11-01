@@ -473,6 +473,11 @@ combinations; concepts still build there.
     constrained by the public concepts, and `test/coroutine/awaitable_test.cpp`
     covers the awaitable helpers, partial delivery, a timeout and a TCP round
     trip.  Both are compiled only when the toolchain probe succeeds.
+12. **Sanitizers and static analysis** — CI builds the full suite with
+    AddressSanitizer + UndefinedBehaviorSanitizer on Linux and macOS and with
+    ThreadSanitizer on Linux; CodeQL analyses the same build on every pull
+    request and weekly.  `cmake/Sanitizers.cmake` exposes the sanitizer
+    selection to users.
 
 ---
 

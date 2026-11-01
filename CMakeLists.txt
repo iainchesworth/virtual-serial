@@ -54,6 +54,11 @@ option(BOOST_VIRTUAL_SERIAL_COVERAGE
   "Instrument tests and examples for line and branch coverage" OFF)
 option(BOOST_VIRTUAL_SERIAL_BUILD_PERF
   "Build the performance benchmark suite" OFF)
+set(BOOST_VIRTUAL_SERIAL_SANITIZERS "" CACHE STRING
+  "Sanitizers to enable: address;undefined (ASan+UBSan) or thread (TSan)")
+
+include(Sanitizers)
+boost_virtual_serial_enable_sanitizers()
 
 # ---------------------------------------------------------------------------
 # Boost headers

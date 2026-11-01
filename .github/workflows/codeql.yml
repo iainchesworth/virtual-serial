@@ -1,0 +1,62 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so new queries catch existing code even without a push.
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze C++
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Cache Boost headers
+        uses: actions/cache@v4
+        with:
+          path: .cache/boost-root
+          key: boost-codeql-${{ runner.os }}-1.92.0
+
+      - name: Fetch Boost
+        run: python tools/fetch_boost.py --version 1.92.0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: c-cpp
+          queries: security-and-quality
+
+      - name: Configure
+        run: |
+          cmake -S . -B build-codeql \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBOOST_ROOT="$GITHUB_WORKSPACE/.cache/boost-root"
+
+      - name: Build
+        run: cmake --build build-codeql --parallel 4
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:c-cpp"

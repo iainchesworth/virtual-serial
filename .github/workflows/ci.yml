@@ -333,6 +333,88 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
+  # Sanitizers: ASan + UBSan on Linux and macOS, TSan on Linux.  Any report
+  # fails the job; the CMake option is documented in cmake/Sanitizers.cmake.
+  # ---------------------------------------------------------------------------
+  sanitizers:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Sanitizers / Linux / ASan + UBSan
+            os: ubuntu-24.04
+            packages: clang-18
+            compilers: -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18
+            sanitizers: "address;undefined"
+            asan_options: "detect_leaks=1:halt_on_error=1:abort_on_error=1"
+            ubsan_options: "halt_on_error=1:print_stacktrace=1"
+            tsan_options: ""
+          - name: Sanitizers / Linux / TSan
+            os: ubuntu-24.04
+            packages: clang-18
+            compilers: -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18
+            sanitizers: "thread"
+            asan_options: ""
+            ubsan_options: ""
+            tsan_options: "halt_on_error=1:second_deadlock_stack=1"
+          - name: Sanitizers / macOS / ASan + UBSan
+            os: macos-15
+            packages: ""
+            compilers: ""
+            sanitizers: "address;undefined"
+            asan_options: "detect_leaks=1:halt_on_error=1"
+            ubsan_options: "halt_on_error=1:print_stacktrace=1"
+            tsan_options: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install compiler
+        if: matrix.packages != ''
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Cache Boost headers
+        uses: actions/cache@v4
+        with:
+          path: .cache/boost-root
+          key: boost-sanitizers-${{ runner.os }}-1.92.0
+
+      - name: Fetch Boost
+        run: python tools/fetch_boost.py --version 1.92.0
+
+      - name: Configure
+        shell: bash
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBOOST_ROOT="$GITHUB_WORKSPACE/.cache/boost-root" \
+            -DBOOST_VIRTUAL_SERIAL_SANITIZERS="${{ matrix.sanitizers }}" \
+            -DBOOST_VIRTUAL_SERIAL_BUILD_TESTS=ON \
+            -DBOOST_VIRTUAL_SERIAL_BUILD_EXAMPLES=ON \
+            ${{ matrix.compilers }}
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --parallel 4
+
+      - name: Run tests
+        shell: bash
+        env:
+          ASAN_OPTIONS: ${{ matrix.asan_options }}
+          UBSAN_OPTIONS: ${{ matrix.ubsan_options }}
+          TSAN_OPTIONS: ${{ matrix.tsan_options }}
+        run: ctest --test-dir build --output-on-failure
+
+  # ---------------------------------------------------------------------------
   # Performance: run the benchmark suite on every OS, publish the table to the
   # job summary, upload the JSON and enforce the floors in perf/floors.json.
   # ---------------------------------------------------------------------------

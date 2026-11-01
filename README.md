@@ -117,7 +117,8 @@ cmake -S . -B build -DBOOST_ROOT=$PWD/.cache/boost-root
 
 Options: `BOOST_VIRTUAL_SERIAL_BUILD_TESTS`, `..._BUILD_EXAMPLES`,
 `..._INSTALL`, `..._WARNINGS_AS_ERRORS` (all default to `ON` at top level),
-and `BOOST_VIRTUAL_SERIAL_COVERAGE` (default `OFF`) for instrumented builds.
+`BOOST_VIRTUAL_SERIAL_COVERAGE` (default `OFF`) for instrumented builds, and
+`BOOST_VIRTUAL_SERIAL_SANITIZERS` (default empty) for ASan, UBSan or TSan.
 
 ### Boost.Build (for the Boost tree)
 
@@ -237,6 +238,40 @@ checks. The Windows matrix runs the full suite but does not gate coverage:
 clang-cl's coverage mapping counts each template instantiation separately, so
 the same source branch appears several times and the ratio is not comparable
 with the other platforms.
+
+### Sanitizers and static analysis
+
+Every push and pull request also runs three sanitizer builds, and any report
+fails the job:
+
+| Job | Toolchain | Sanitizers |
+|---|---|---|
+| `Sanitizers / Linux / ASan + UBSan` | Clang 18 | AddressSanitizer with leak detection, UndefinedBehaviorSanitizer |
+| `Sanitizers / Linux / TSan` | Clang 18 | ThreadSanitizer |
+| `Sanitizers / macOS / ASan + UBSan` | AppleClang | AddressSanitizer, UndefinedBehaviorSanitizer |
+
+The tests, examples, coroutine tests and concept tests all run under the
+sanitizers. Reproduce locally with:
+
+```bash
+cmake -S . -B build-sanitize -DCMAKE_BUILD_TYPE=Debug \
+  -DBOOST_VIRTUAL_SERIAL_SANITIZERS="address;undefined"
+cmake --build build-sanitize
+ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 \
+UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
+  ctest --test-dir build-sanitize --output-on-failure
+```
+
+`BOOST_VIRTUAL_SERIAL_SANITIZERS=thread` builds the ThreadSanitizer variant.
+The option is supported with Clang and GCC on Linux and macOS; MSVC and
+clang-cl are rejected with a configure error because their link step cannot
+carry the sanitizer runtime.
+
+CodeQL runs from [`.github/workflows/codeql.yml`](.github/workflows/codeql.yml)
+on every push to `main`, on pull requests and weekly on a schedule. It builds
+the full suite with CMake and analyses C++ with the `security-and-quality`
+query pack; findings appear in the repository's **Security → Code scanning**
+tab.
 
 A dedicated `Changelog fragments` job validates every file in `changelog.d/`,
 prints the section that the next release would contain, and runs the changelog
@@ -556,7 +591,7 @@ example/                                   runnable examples
 perf/                                      benchmark suite (opt-in)
 doc/                                       Quickbook documentation and blueprint
 build/                                     Boost.Build metadata
-cmake/                                     package and coverage helpers
+cmake/                                     package, coverage and sanitizer helpers
 CHANGELOG.md                               Keep a Changelog history
 changelog.d/                               one fragment per unreleased change
 CONTRIBUTING.md                            contribution and commit-authorship rules

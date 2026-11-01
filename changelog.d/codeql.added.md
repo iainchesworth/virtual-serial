@@ -1,0 +1,1 @@
+CodeQL code scanning for C++ on every push to `main`, on pull requests and on a weekly schedule, using the `security-and-quality` query pack and publishing results to the repository's code-scanning dashboard.
