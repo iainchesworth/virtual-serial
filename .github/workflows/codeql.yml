@@ -22,6 +22,10 @@ concurrency:
 jobs:
   analyze:
     name: Analyze C++
+    # Code scanning on a private repository requires GitHub Advanced Security;
+    # it is free for public repositories.  Skip cleanly when it is unavailable
+    # instead of failing the CI run.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
 

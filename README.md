@@ -271,7 +271,9 @@ CodeQL runs from [`.github/workflows/codeql.yml`](.github/workflows/codeql.yml)
 on every push to `main`, on pull requests and weekly on a schedule. It builds
 the full suite with CMake and analyses C++ with the `security-and-quality`
 query pack; findings appear in the repository's **Security → Code scanning**
-tab.
+tab. Code scanning on a private repository requires GitHub Advanced Security,
+so the job skips itself when the repository is private and no GHAS licence is
+available; making the repository public enables it without further changes.
 
 A dedicated `Changelog fragments` job validates every file in `changelog.d/`,
 prints the section that the next release would contain, and runs the changelog
