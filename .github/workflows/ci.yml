@@ -316,8 +316,6 @@ jobs:
           python tools/coverage_report.py \
             --objects \
               "$GITHUB_WORKSPACE/build/test/boost_virtual_serial_tests" \
-              "$GITHUB_WORKSPACE/build/test/boost_virtual_serial_cxx14_headers" \
-              "$GITHUB_WORKSPACE/build/test/boost_virtual_serial_cxx20_concepts" \
             --profiles "$GITHUB_WORKSPACE/build/profiles" \
             --llvm-profdata "$LLVM_PROFDATA" \
             --llvm-cov "$LLVM_COV" \
@@ -384,8 +382,6 @@ jobs:
           python tools/coverage_report.py `
             --objects `
               "$env:GITHUB_WORKSPACE\build\test\boost_virtual_serial_tests.exe" `
-              "$env:GITHUB_WORKSPACE\build\test\boost_virtual_serial_cxx14_headers.exe" `
-              "$env:GITHUB_WORKSPACE\build\test\boost_virtual_serial_cxx20_concepts.exe" `
             --profiles "$env:GITHUB_WORKSPACE\build\profiles" `
             --llvm-profdata "$llvm\llvm-profdata.exe" `
             --llvm-cov "$llvm\llvm-cov.exe" `
