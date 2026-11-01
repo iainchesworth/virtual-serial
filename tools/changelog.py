@@ -36,7 +36,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DEFAULT_REPO_URL = "https://github.com/iainchesworth/boost-virtual-serial"
+DEFAULT_REPO_URL = "https://github.com/iainchesworth/virtual-serial"
 
 CATEGORIES = [
     ("added", "Added"),

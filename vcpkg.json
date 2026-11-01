@@ -3,7 +3,7 @@
   "name": "boost-virtual-serial",
   "version": "1.0.0",
   "description": "Drop-in, mockable serial stream abstraction for Boost.Asio",
-  "homepage": "https://github.com/iainchesworth/boost-virtual-serial",
+  "homepage": "https://github.com/iainchesworth/virtual-serial",
   "license": "BSL-1.0",
   "dependencies": [
     "boost-asio"

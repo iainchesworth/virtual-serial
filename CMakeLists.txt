@@ -24,7 +24,7 @@ project(
   boost_virtual_serial
   VERSION 1.0.0
   DESCRIPTION "Drop-in, mockable serial stream abstraction for Boost.Asio"
-  HOMEPAGE_URL "https://github.com/iainchesworth/boost-virtual-serial"
+  HOMEPAGE_URL "https://github.com/iainchesworth/virtual-serial"
   LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
