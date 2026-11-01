@@ -36,14 +36,12 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Cache Boost headers
-        uses: actions/cache@v4
-        with:
-          path: .cache/boost-root
-          key: boost-codeql-${{ runner.os }}-1.92.0
-
-      - name: Fetch Boost
-        run: python tools/fetch_boost.py --version 1.92.0
+      - name: Fetch Boost outside the workspace
+        # CodeQL archives the files under the workspace; keeping Boost in the
+        # runner temp directory keeps third-party headers out of the database.
+        run: |
+          python tools/fetch_boost.py --version 1.92.0 \
+            --dest "$RUNNER_TEMP/boost-root"
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
@@ -56,7 +54,7 @@ jobs:
         run: |
           cmake -S . -B build-codeql \
             -DCMAKE_BUILD_TYPE=Release \
-            -DBOOST_ROOT="$GITHUB_WORKSPACE/.cache/boost-root"
+            -DBOOST_ROOT="$RUNNER_TEMP/boost-root"
 
       - name: Build
         run: cmake --build build-codeql --parallel 4

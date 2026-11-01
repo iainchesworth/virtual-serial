@@ -270,10 +270,11 @@ carry the sanitizer runtime.
 CodeQL runs from [`.github/workflows/codeql.yml`](.github/workflows/codeql.yml)
 on every push to `main`, on pull requests and weekly on a schedule. It builds
 the full suite with CMake and analyses C++ with the `security-extended` query
-pack; the fetched Boost tree is excluded by
-[`.github/codeql/codeql-config.yml`](.github/codeql/codeql-config.yml), so only
-project code is reported. Findings appear in the repository's
-**Security → Code scanning** tab. Code scanning on a private repository requires GitHub Advanced Security,
+pack. Boost is fetched into the runner's temporary directory rather than the
+workspace, and
+[`.github/codeql/codeql-config.yml`](.github/codeql/codeql-config.yml) keeps
+build output out of the database, so only project code is reported. Findings
+appear in the repository's **Security → Code scanning** tab. Code scanning on a private repository requires GitHub Advanced Security,
 so the job skips itself when the repository is private and no GHAS licence is
 available; making the repository public enables it without further changes.
 
