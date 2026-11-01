@@ -55,5 +55,5 @@ Run `python tools/changelog.py --dry-run` to preview the section below.
   `cancel()` aborts all pending operations on the port, as
   `boost::asio::serial_port::cancel()` does.
 
-[Unreleased]: https://github.com/iainchesworth/virtual_serial/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/iainchesworth/virtual_serial/releases/tag/v1.0.0
+[Unreleased]: https://github.com/iainchesworth/boost-virtual-serial/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/iainchesworth/boost-virtual-serial/releases/tag/v1.0.0
