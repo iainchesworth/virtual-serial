@@ -353,9 +353,16 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
-          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-          $llvm = Join-Path $vs "VC\Tools\Llvm\x64\bin"
+          # Prefer the standalone LLVM toolchain: newer clang versions merge
+          # branch records from template instantiations, and the Visual Studio
+          # copy can be several releases older.
+          $llvm = "C:\Program Files\LLVM\bin"
+          if (-not (Test-Path "$llvm\clang-cl.exe")) {
+            $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+            $llvm = Join-Path $vs "VC\Tools\Llvm\x64\bin"
+          }
           "LLVM_BIN=$llvm" | Out-File -FilePath $env:GITHUB_ENV -Append
+          & "$llvm\clang-cl.exe" --version
           cmake -S . -B build -G "NMake Makefiles" `
             -DCMAKE_BUILD_TYPE=Debug `
             -DCMAKE_C_COMPILER="$llvm\clang-cl.exe" `
