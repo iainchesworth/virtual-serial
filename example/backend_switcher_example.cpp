@@ -49,8 +49,10 @@ void request_status(asio::io_context& io, Port& port, const std::string& label)
 /// Installs a tiny scripted device on any mock backend.
 void attach_mock_device(const std::shared_ptr<vs::mock_port>& mock)
 {
-    mock->set_write_handler([mock](const unsigned char*, std::size_t) {
-        mock->inject_line("STATUS=READY");
+    const std::weak_ptr<vs::mock_port> weak = mock;
+    mock->set_write_handler([weak](const unsigned char*, std::size_t) {
+        if (const std::shared_ptr<vs::mock_port> target = weak.lock())
+            target->inject_line("STATUS=READY");
     });
 }
 

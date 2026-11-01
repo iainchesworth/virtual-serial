@@ -8,7 +8,9 @@
 // Optional C++20 coroutine helpers.  The port types are ordinary Asio streams,
 // so `co_await port.async_read_some(buffers, asio::use_awaitable)` already
 // works; these helpers wrap the common composed operations so an application
-// does not have to spell them out.  The header is empty without coroutine
+// does not have to spell them out.  The buffer sequence is taken by value and
+// stored in the coroutine frame, so a temporary buffer() expression is safe.
+// The header is empty without coroutine
 // support; check BOOST_VIRTUAL_SERIAL_HAS_COROUTINES before using it.
 
 #ifndef BOOST_VIRTUAL_SERIAL_AWAITABLE_HPP
@@ -39,7 +41,7 @@ namespace virtual_serial {
 */
 template <class Stream, class MutableBufferSequence>
 boost::asio::awaitable<std::size_t> read_some(
-    Stream& stream, const MutableBufferSequence& buffers)
+    Stream& stream, MutableBufferSequence buffers)
 {
     co_return co_await stream.async_read_some(
         buffers, boost::asio::use_awaitable);
@@ -52,7 +54,7 @@ boost::asio::awaitable<std::size_t> read_some(
 */
 template <class Stream, class MutableBufferSequence>
 boost::asio::awaitable<std::size_t> read_exactly(
-    Stream& stream, const MutableBufferSequence& buffers)
+    Stream& stream, MutableBufferSequence buffers)
 {
     co_return co_await boost::asio::async_read(
         stream, buffers, boost::asio::use_awaitable);
@@ -61,7 +63,7 @@ boost::asio::awaitable<std::size_t> read_exactly(
 /** Writes the whole buffer sequence, or throws on error. */
 template <class Stream, class ConstBufferSequence>
 boost::asio::awaitable<std::size_t> write_all(
-    Stream& stream, const ConstBufferSequence& buffers)
+    Stream& stream, ConstBufferSequence buffers)
 {
     co_return co_await boost::asio::async_write(
         stream, buffers, boost::asio::use_awaitable);

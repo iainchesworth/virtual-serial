@@ -33,9 +33,12 @@ void demonstrate_scripted_device(asio::io_context& io)
     const std::shared_ptr<vs::mock_port> mock = vs::make_mock_port(io.get_executor());
     vs::basic_serial_port<vs::mock_port> port(io.get_executor(), mock);
 
-    mock->set_write_handler([mock](const unsigned char*, std::size_t) {
-        // The device answers every command with OK.
-        mock->inject_read("OK\r\n");
+    const std::weak_ptr<vs::mock_port> weak = mock;
+    mock->set_write_handler([weak](const unsigned char*, std::size_t) {
+        // The device answers every command with OK.  The handler lives
+        // inside the mock, so a shared_ptr capture would be a cycle.
+        if (const std::shared_ptr<vs::mock_port> target = weak.lock())
+            target->inject_read("OK\r\n");
     });
 
     port.open("at-modem");
