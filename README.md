@@ -140,7 +140,7 @@ system Boost installation, because the workflow fetches one.
 
 | Axis | Values |
 |---|---|
-| Operating systems | Ubuntu 22.04, Ubuntu 24.04, macOS 14, macOS 15, Windows 2022, Windows 2025 |
+| Operating systems | Ubuntu 22.04, Ubuntu 24.04, macOS 15, macOS 26, Windows 2022, Windows 2025 |
 | Compilers | GCC 11/12/13, Clang 14/18, AppleClang, MSVC |
 | Language levels | C++14, C++17, C++20 |
 | Boost releases | 1.74 (oldest supported) and 1.92 (current) |

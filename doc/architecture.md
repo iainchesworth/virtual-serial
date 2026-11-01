@@ -457,7 +457,7 @@ combinations; concepts still build there.
    header and compiles as C++14; `cxx20_concepts.cpp` proves the same types
    satisfy the C++20 concepts.
 9. **Platform matrix and coverage** — GitHub Actions runs the suite on Ubuntu
-   22.04/24.04, macOS 14/15 and Windows 2022/2025 with GCC 11/12/13, Clang
+   22.04/24.04, macOS 15/26 and Windows 2022/2025 with GCC 11/12/13, Clang
    14/18, AppleClang and MSVC at C++14/17/20 against Boost 1.74 and 1.92. Three
    jobs instrument the primary test binary with LLVM profile data and fail
    the build below **90% line** or **80% branch** coverage; the report is

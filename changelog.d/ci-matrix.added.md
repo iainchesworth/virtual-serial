@@ -1,1 +1,1 @@
-A GitHub Actions matrix covering Ubuntu 22.04/24.04, macOS 14/15 and Windows 2022/2025 with GCC 11/12/13, Clang 14/18, AppleClang and MSVC at C++14/17/20, against Boost 1.74 (oldest supported) and 1.92 (current).
+A GitHub Actions matrix covering Ubuntu 22.04/24.04, macOS 15/26 and Windows 2022/2025 with GCC 11/12/13, Clang 14/18, AppleClang and MSVC at C++14/17/20, against Boost 1.74 (oldest supported) and 1.92 (current).

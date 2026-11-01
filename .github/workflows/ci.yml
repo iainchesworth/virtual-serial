@@ -74,24 +74,24 @@ jobs:
             loopback: true
 
           # ---- macOS ------------------------------------------------------
-          - name: macOS 14 / AppleClang / C++14 / Boost 1.74
-            os: macos-14
+          - name: macOS 15 / AppleClang / C++14 / Boost 1.74
+            os: macos-15
             cc: ""
             cxx: ""
             packages: ""
             std: 14
             boost: 1.74.0
             loopback: true
-          - name: macOS 14 / AppleClang / C++17
-            os: macos-14
+          - name: macOS 15 / AppleClang / C++17
+            os: macos-15
             cc: ""
             cxx: ""
             packages: ""
             std: 17
             boost: 1.92.0
             loopback: true
-          - name: macOS 15 / AppleClang / C++20
-            os: macos-15
+          - name: macOS 26 / AppleClang / C++20
+            os: macos-26
             cc: ""
             cxx: ""
             packages: ""
@@ -242,7 +242,7 @@ jobs:
               -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
             loopback: true
           - name: macOS / AppleClang
-            os: macos-14
+            os: macos-15
             packages: ""
             configure: ""
             loopback: true
