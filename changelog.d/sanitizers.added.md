@@ -1,1 +1,0 @@
-ASan + UBSan and TSan builds in CI, with the `BOOST_VIRTUAL_SERIAL_SANITIZERS` CMake option and leak detection enabled, so the full test suite, examples, coroutine tests and concept tests run under the sanitizers on every push and pull request.

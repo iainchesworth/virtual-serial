@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [develop, main]
   pull_request:
+    branches: [develop, main]
   workflow_dispatch:
 
 concurrency:
@@ -541,6 +542,9 @@ jobs:
 
       - name: Validate CHANGELOG.md and fragments
         run: python tools/changelog.py --check
+
+      - name: Check version consistency
+        run: python tools/check_version.py
 
       - name: Preview the unreleased section
         run: python tools/changelog.py --dry-run

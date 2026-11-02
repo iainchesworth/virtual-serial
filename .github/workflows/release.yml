@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag and publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Read and verify the version
+        id: version
+        run: |
+          VERSION="$(python tools/check_version.py --print)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          python tools/check_version.py --require-changelog
+
+      - name: Check for an existing tag
+        id: existing
+        run: |
+          if git rev-parse -q --verify \
+              "refs/tags/v${{ steps.version.outputs.version }}" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Stop when the release already exists
+        if: steps.existing.outputs.exists == 'true'
+        run: |
+          echo "v${{ steps.version.outputs.version }} already exists; nothing to publish."
+
+      - name: Fetch Boost headers
+        if: steps.existing.outputs.exists != 'true'
+        run: python tools/fetch_boost.py --version 1.92.0
+
+      - name: Build the installed package
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          cmake -S . -B build-release \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBOOST_ROOT="$GITHUB_WORKSPACE/.cache/boost-root" \
+            -DBOOST_VIRTUAL_SERIAL_BUILD_TESTS=OFF \
+            -DBOOST_VIRTUAL_SERIAL_BUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/stage"
+          cmake --build build-release --parallel 4
+          cmake --install build-release
+          cp README.md LICENSE_1_0.txt stage/
+          tar -czf \
+            "virtual-serial-${{ steps.version.outputs.version }}.tar.gz" \
+            -C stage .
+
+      - name: Write the release notes
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          python tools/changelog.py --notes \
+            "${{ steps.version.outputs.version }}" > notes.md
+
+      - name: Publish the release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ "$VERSION" == *-* ]]; then
+            PRERELEASE=(--prerelease)
+          else
+            PRERELEASE=()
+          fi
+          gh release create "v$VERSION" \
+            --title "Boost.VirtualSerial $VERSION" \
+            --notes-file notes.md \
+            --target "$GITHUB_SHA" \
+            "${PRERELEASE[@]}" \
+            "virtual-serial-$VERSION.tar.gz"

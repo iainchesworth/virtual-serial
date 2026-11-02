@@ -20,9 +20,26 @@
 
 cmake_minimum_required(VERSION 3.16)
 
+# The version is defined once in version.txt.  CMake needs the numeric part for
+# the package version file; the public header, the vcpkg manifest and the
+# changelog carry the full semantic version, and tools/check_version.py keeps
+# them in step.
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/version.txt"
+  BOOST_VIRTUAL_SERIAL_VERSION_STRING LIMIT_COUNT 1)
+string(STRIP "${BOOST_VIRTUAL_SERIAL_VERSION_STRING}"
+  BOOST_VIRTUAL_SERIAL_VERSION_STRING)
+if(NOT BOOST_VIRTUAL_SERIAL_VERSION_STRING MATCHES
+    "^([0-9]+)\\.([0-9]+)\\.([0-9]+)(-[0-9A-Za-z.-]+)?$")
+  message(FATAL_ERROR
+    "version.txt must contain a semantic version, got "
+    "'${BOOST_VIRTUAL_SERIAL_VERSION_STRING}'")
+endif()
+set(BOOST_VIRTUAL_SERIAL_VERSION_NUMBER
+  "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
+
 project(
   boost_virtual_serial
-  VERSION 1.0.0
+  VERSION "${BOOST_VIRTUAL_SERIAL_VERSION_NUMBER}"
   DESCRIPTION "Drop-in, mockable serial stream abstraction for Boost.Asio"
   HOMEPAGE_URL "https://github.com/iainchesworth/virtual-serial"
   LANGUAGES CXX)
