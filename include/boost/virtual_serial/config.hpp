@@ -5,7 +5,7 @@
 // (See accompanying file LICENSE_1_0.txt or copy at
 // https://www.boost.org/LICENSE_1_0.txt)
 //
-// Official repository: https://github.com/boostorg/virtual_serial
+// Official repository: https://github.com/iainchesworth/virtual-serial
 //
 
 #ifndef BOOST_VIRTUAL_SERIAL_CONFIG_HPP

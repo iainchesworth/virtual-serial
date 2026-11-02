@@ -190,6 +190,12 @@ endif()
 if(BOOST_VIRTUAL_SERIAL_INSTALL)
   install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
+  install(FILES
+    README.md
+    LICENSE_1_0.txt
+    version.txt
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/boost_virtual_serial)
+
   install(TARGETS boost_virtual_serial
     EXPORT boost_virtual_serial-targets)
 
