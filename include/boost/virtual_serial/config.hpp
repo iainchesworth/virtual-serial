@@ -19,8 +19,8 @@
 
 // Version numbering follows the Boost convention: major * 100000 +
 // minor * 100 + patch.
-#define BOOST_VIRTUAL_SERIAL_VERSION 100000
-#define BOOST_VIRTUAL_SERIAL_VERSION_STRING "1.0.0"
+#define BOOST_VIRTUAL_SERIAL_VERSION 100
+#define BOOST_VIRTUAL_SERIAL_VERSION_STRING "0.1.0-beta.1"
 
 #if defined(_MSVC_LANG)
 # define BOOST_VIRTUAL_SERIAL_CPLUSPLUS _MSVC_LANG

@@ -603,6 +603,7 @@ doc/                                       Quickbook documentation and blueprint
 build/                                     Boost.Build metadata
 cmake/                                     package, coverage and sanitizer helpers
 CHANGELOG.md                               Keep a Changelog history
+version.txt                                single source of truth for the version
 changelog.d/                               one fragment per unreleased change
 CONTRIBUTING.md                            contribution and commit-authorship rules
 .githooks/commit-msg                       local attribution guard
@@ -613,6 +614,8 @@ tools/coverage_report.py                   llvm-profdata/llvm-cov driver
 tools/changelog.py                         validate, merge and release fragments
 tools/check_commit_message.py              reject attribution and trailers
 tools/perf_report.py                       render and gate benchmark results
+tools/check_version.py                     keep all version surfaces in step
+.github/workflows/release.yml              tag and publish merges to main
 ```
 
 ## 12. Testing
@@ -800,6 +803,59 @@ git config core.hooksPath .githooks      # enable the local check once
 python tools/check_commit_message.py --commit HEAD
 ```
 
-## 17. License
+## 17. Branching and releases
+
+The repository uses a trunk-based flow with a dedicated integration branch:
+
+| Branch | Purpose |
+|---|---|
+| `develop` | Default branch and integration point. All feature work lands here first. |
+| `main` | Released history only. A merge to `main` is a release. |
+| `feature/*` | Short-lived branches opened against `develop`. |
+
+CI and CodeQL run on every push to `develop` and `main`, and on pull requests
+targeting either branch. `main` is protected: it only accepts pull requests,
+so a release cannot be pushed directly.
+
+### Day-to-day work
+
+Branch from `develop`, add tests and a changelog fragment, and open a pull
+request back into `develop`. Nothing special is required to prepare a release:
+the fragments accumulate until the release is cut.
+
+### Cutting a release
+
+1. On `develop`, set the semantic version in [`version.txt`](version.txt) and
+   update the matching surfaces (`config.hpp`, `vcpkg.json`) — the
+   `Check version consistency` CI step reports any mismatch.
+2. Fold the fragments into the changelog for that version:
+
+   ```bash
+   python tools/changelog.py --release 0.1.0-beta.1
+   ```
+
+3. Push `develop` and wait for CI.
+4. Open a pull request from `develop` into `main` and merge it. **The merge is
+   the release.**
+5. [`release.yml`](.github/workflows/release.yml) runs on `main`: it reads
+   `version.txt`, requires the matching changelog section, builds the installed
+   package, creates the `v<version>` tag and publishes a GitHub release with
+   the package attached. Versions containing a pre-release suffix are marked
+   as pre-releases automatically.
+
+The version is defined once in `version.txt` and flows through the build:
+
+| Surface | Value for the first release |
+|---|---|
+| `version.txt` | `0.1.0-beta.1` |
+| `config.hpp` (`BOOST_VIRTUAL_SERIAL_VERSION_STRING` / `..._VERSION`) | `0.1.0-beta.1` / `100` |
+| `vcpkg.json` | `0.1.0-beta.1` |
+| CMake project version | `0.1.0` (numeric part for the package config) |
+| Changelog heading and git tag | `0.1.0-beta.1` / `v0.1.0-beta.1` |
+
+`python tools/check_version.py --require-changelog` enforces all of them, and
+the release workflow refuses to tag a version without a changelog section.
+
+## 18. License
 
 Distributed under the [Boost Software License, Version 1.0](LICENSE_1_0.txt).

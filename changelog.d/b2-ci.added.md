@@ -1,1 +1,0 @@
-A Boost.Build CI job that copies the library into a Boost 1.92 superproject, generates the header tree, bootstraps `b2` and builds and runs the test suite, including the C++14 and C++20 targets and the physical loopback tests over a pseudo-terminal pair.

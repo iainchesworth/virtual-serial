@@ -1,5 +1,15 @@
 # Contributing
 
+## Branches
+
+- `develop` is the default and integration branch. Branch from it and open
+  pull requests against it.
+- `main` is release-only and protected. Changes reach it by merging a release
+  pull request from `develop`; that merge triggers the `Release` workflow,
+  which tags `v<version>` and publishes the package.
+
+See the branching and release section of the README for the release steps.
+
 ## Commit authorship
 
 This repository has a single committer: its maintainer, **Iain Chesworth**

@@ -1,1 +1,0 @@
-The C++20 concepts moved to the public `<boost/virtual_serial/concepts.hpp>` header, now covering the asynchronous operations as well as the synchronous interface, with constrained runtime tests, a `concepts_demo_example` and a CMake feature probe that enables the C++20 targets only when the toolchain and Boost support them.

@@ -55,14 +55,18 @@ FRAGMENT_RE = re.compile(
 )
 UNRELEASED_RE = re.compile(r"^## \[Unreleased\]\s*$")
 VERSION_RE = re.compile(
-    r"^## \[(?P<version>[0-9]+\.[0-9]+\.[0-9]+)\]"
+    r"^## \[(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)\]"
     r"(?:\s*-\s*(?P<date>[0-9]{4}-[0-9]{2}-[0-9]{2}))?\s*$"
 )
 ANY_H2_RE = re.compile(r"^## \[")
 SECTION_RE = re.compile(r"^### (?P<title>.+?)\s*$")
 LINK_RE = re.compile(r"^\[(?P<label>[^\]]+)\]:\s*(?P<url>\S+)\s*$")
-SEMVER_RE = re.compile(r"^(?P<major>0|[1-9][0-9]*)\.(?P<minor>0|[1-9][0-9]*)"
-                       r"\.(?P<patch>0|[1-9][0-9]*)$")
+SEMVER_RE = re.compile(
+    r"^(?P<major>0|[1-9][0-9]*)\."
+    r"(?P<minor>0|[1-9][0-9]*)\."
+    r"(?P<patch>0|[1-9][0-9]*)"
+    r"(?:-(?P<pre>[0-9A-Za-z.-]+))?$"
+)
 ISO_DATE_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 
 
@@ -275,11 +279,51 @@ def merge(root: Path, keep: bool, dry_run: bool) -> int:
     return 0
 
 
-def semver(version: str) -> tuple[int, int, int]:
+def semver(version: str) -> tuple:
+    """Returns a sortable SemVer key; pre-releases sort below the release.
+
+    Numeric identifiers compare numerically and sort before alphanumeric ones,
+    exactly as SemVer 2.0.0 specifies, so 0.1.0-beta.2 precedes 0.1.0-beta.10
+    and both precede 0.1.0.
+    """
     match = SEMVER_RE.match(version)
     if not match:
-        raise ChangelogError(f"'{version}' is not a semantic version (X.Y.Z)")
-    return (int(match.group("major")), int(match.group("minor")), int(match.group("patch")))
+        raise ChangelogError(
+            f"'{version}' is not a semantic version (X.Y.Z or X.Y.Z-prerelease)")
+    prerelease = match.group("pre")
+    if prerelease is None:
+        suffix: tuple = (1,)
+    else:
+        identifiers = tuple(
+            (0, int(part)) if part.isdigit() else (1, part)
+            for part in prerelease.split("."))
+        suffix = (0, identifiers)
+    return (int(match.group("major")), int(match.group("minor")),
+            int(match.group("patch")), suffix)
+
+
+def release_notes(root: Path, version: str) -> str:
+    """Returns the body of the changelog section for `version`."""
+    _, text = load(root)
+    lines = text.splitlines()
+    start = None
+    for index, line in enumerate(lines):
+        match = VERSION_RE.match(line)
+        if match and match.group("version") == version:
+            start = index
+            break
+    if start is None:
+        raise ChangelogError(f"CHANGELOG.md has no [{version}] section")
+
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        if ANY_H2_RE.match(lines[index]) or LINK_RE.match(lines[index]):
+            end = index
+            break
+    body = "\n".join(lines[start + 1 : end]).strip()
+    if not body:
+        raise ChangelogError(f"CHANGELOG.md section [{version}] is empty")
+    return body
 
 
 def release(root: Path, version: str, date: str, keep: bool, repo_url: str) -> int:
@@ -330,7 +374,7 @@ def release(root: Path, version: str, date: str, keep: bool, repo_url: str) -> i
     ordered: list[str] = []
     for label in ["Unreleased"] + sorted(
         (key for key in named if key != "Unreleased"),
-        key=lambda value: semver(value) if SEMVER_RE.match(value) else (0, 0, 0),
+        key=lambda value: semver(value) if SEMVER_RE.match(value) else (0, 0, 0, (0, ())),
         reverse=True,
     ):
         ordered.append(f"[{label}]: {named[label]}")
@@ -357,6 +401,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="print the merged Unreleased section, change nothing")
     parser.add_argument("--release", metavar="VERSION",
                         help="fold the fragments into a dated VERSION section")
+    parser.add_argument("--notes", metavar="VERSION",
+                        help="print the changelog body for VERSION")
     parser.add_argument("--date", default=None,
                         help="release date (YYYY-MM-DD, default: today)")
     parser.add_argument("--keep", action="store_true",
@@ -365,6 +411,9 @@ def main(argv: list[str] | None = None) -> int:
 
     root = Path(args.root).resolve()
     try:
+        if args.notes:
+            print(release_notes(root, args.notes))
+            return 0
         if args.check:
             fragments = check(root)
             print(f"changelog OK ({len(fragments)} pending fragment(s))")
