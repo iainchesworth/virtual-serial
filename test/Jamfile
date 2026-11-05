@@ -34,6 +34,7 @@ run
     integration/physical_loopback_test.cpp
     integration/serial_modes_test.cpp
     asio/async_contract_test.cpp
+    asio/timeout_threads_test.cpp
     :
     :
     : # requirements
