@@ -24,6 +24,7 @@ import check_commit_message as checker  # noqa: E402
 TEMP_ROOT = TOOLS.parent / ".cache" / "commit-message-tests"
 
 MAINTAINER = "iain.chesworth@gmail.com"
+NOREPLY = "iainchesworth@users.noreply.github.com"
 
 # The forbidden markers are assembled from pieces so that a repository-wide
 # scan for attribution strings only finds this test file's intent, not a stray
@@ -135,6 +136,13 @@ class RangeTests(unittest.TestCase):
         result = self.run_checker("--author-email", MAINTAINER)
         self.assertEqual(result.returncode, 1)
         self.assertIn("is not the maintainer", result.stderr)
+
+    def test_any_listed_author_passes(self) -> None:
+        self.commit("Add a feature\n", email=NOREPLY)
+        result = self.run_checker(
+            "--author-email", MAINTAINER, "--author-email", NOREPLY
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_missing_range_is_not_an_error(self) -> None:
         self.commit("Add a feature\n")
