@@ -11,6 +11,12 @@ Run `python tools/changelog.py --dry-run` to preview the section below.
 
 ## [Unreleased]
 
+## [0.1.0-beta.2] - 2026-11-05
+
+### Fixed
+
+- A read or write with a timeout no longer races with its own completion. The timer is armed before the backend operation starts, and the flags shared by the timer handler and the completion handler are atomic. Before, a backend that completed on another thread of the `io_context` could cancel the timer while the calling thread was still arming it, which ThreadSanitizer reported as a data race.
+
 ## [0.1.0-beta.1] - 2026-11-02
 
 ### Added
@@ -57,5 +63,6 @@ Run `python tools/changelog.py --dry-run` to preview the section below.
 - A Telnet `DONT` for the com port option now resets both halves of the negotiation, so a later `WILL` is answered with `DO` again.
 - Queued mock operations now register `io_context` work, so `io_context::run()` no longer returns while a read or a delayed write is still outstanding.
 
-[Unreleased]: https://github.com/iainchesworth/virtual-serial/compare/v0.1.0-beta.1...HEAD
+[Unreleased]: https://github.com/iainchesworth/virtual-serial/compare/v0.1.0-beta.2...HEAD
+[0.1.0-beta.2]: https://github.com/iainchesworth/virtual-serial/releases/tag/v0.1.0-beta.2
 [0.1.0-beta.1]: https://github.com/iainchesworth/virtual-serial/releases/tag/v0.1.0-beta.1
