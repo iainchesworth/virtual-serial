@@ -22,6 +22,7 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/system/error_code.hpp>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -78,8 +79,11 @@ private:
 
         boost::asio::steady_timer timer;
         typename Backend::read_completion handler;
-        bool completed = false;
-        bool timed_out = false;
+        // The timer handler and the completion handler may run on different
+        // threads of the executor, so the flags are atomic. Whichever sets
+        // `completed` first finishes the operation.
+        std::atomic<bool> completed{false};
+        std::atomic<bool> timed_out{false};
     };
 
 public:
@@ -446,17 +450,29 @@ private:
             std::make_shared<timer_state>(get_executor());
         state->handler = std::move(handler);
 
+        // Arm the timer before the backend operation starts. A backend can
+        // complete on another thread at once, and its completion cancels the
+        // timer, which must not overlap with arming it here.
+        state->timer.expires_after(config_.read_timeout);
+        state->timer.async_wait(
+            [this, state](boost::system::error_code ec) {
+                if (ec || state->completed.load())
+                    return;
+                state->timed_out.store(true);
+                boost::system::error_code ignored;
+                this->cancel(ignored);
+            });
+
         backend_->async_read_some(
             std::move(buffers),
             read_completion(
                 [state](
                     boost::system::error_code ec, std::size_t transferred) mutable {
-                    if (state->completed)
+                    if (state->completed.exchange(true))
                         return;
-                    state->completed = true;
                     state->timer.cancel();
                     read_completion handler_out = std::move(state->handler);
-                    if (state->timed_out)
+                    if (state->timed_out.load())
                     {
                         handler_out(make_error_code(error::timeout), 0);
                         return;
@@ -464,16 +480,6 @@ private:
                     handler_out(ec, transferred);
                 },
                 get_executor()));
-
-        state->timer.expires_after(config_.read_timeout);
-        state->timer.async_wait(
-            [this, state](boost::system::error_code ec) {
-                if (ec || state->completed)
-                    return;
-                state->timed_out = true;
-                boost::system::error_code ignored;
-                this->cancel(ignored);
-            });
     }
 
     void start_write(
@@ -495,17 +501,29 @@ private:
             std::make_shared<timer_state>(get_executor());
         state->handler = std::move(handler);
 
+        // Arm the timer before the backend operation starts. A backend can
+        // complete on another thread at once, and its completion cancels the
+        // timer, which must not overlap with arming it here.
+        state->timer.expires_after(config_.write_timeout);
+        state->timer.async_wait(
+            [this, state](boost::system::error_code ec) {
+                if (ec || state->completed.load())
+                    return;
+                state->timed_out.store(true);
+                boost::system::error_code ignored;
+                this->cancel(ignored);
+            });
+
         backend_->async_write_some(
             std::move(buffers),
             write_completion(
                 [state](
                     boost::system::error_code ec, std::size_t transferred) mutable {
-                    if (state->completed)
+                    if (state->completed.exchange(true))
                         return;
-                    state->completed = true;
                     state->timer.cancel();
                     write_completion handler_out = std::move(state->handler);
-                    if (state->timed_out)
+                    if (state->timed_out.load())
                     {
                         handler_out(make_error_code(error::timeout), 0);
                         return;
@@ -513,16 +531,6 @@ private:
                     handler_out(ec, transferred);
                 },
                 get_executor()));
-
-        state->timer.expires_after(config_.write_timeout);
-        state->timer.async_wait(
-            [this, state](boost::system::error_code ec) {
-                if (ec || state->completed)
-                    return;
-                state->timed_out = true;
-                boost::system::error_code ignored;
-                this->cancel(ignored);
-            });
     }
 
     executor_type executor_;

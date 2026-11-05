@@ -11,7 +11,8 @@ Usage
     git log --format=%B -1 | python tools/check_commit_message.py --stdin
     python tools/check_commit_message.py --commit HEAD
     python tools/check_commit_message.py --range origin/main..HEAD \
-        --author-email iain.chesworth@gmail.com
+        --author-email iain.chesworth@gmail.com \
+        --author-email iainchesworth@users.noreply.github.com
 
 Exit status is 0 when every checked message is clean, 1 otherwise.
 """
@@ -156,15 +157,16 @@ def message_of(commit: str) -> str:
     return git("show", "-s", "--format=%B", commit)
 
 
-def check_commits(revs: list[str], author_email: str | None) -> list[str]:
+def check_commits(revs: list[str], author_emails: list[str]) -> list[str]:
+    allowed = [email.lower() for email in author_emails]
     problems: list[str] = []
     for commit in revs:
-        if author_email:
+        if allowed:
             author = author_of(commit).lower()
-            if author != author_email.lower():
+            if author not in allowed:
                 problems.append(
                     f"{commit}: author {author!r} is not the maintainer "
-                    f"({author_email!r})"
+                    f"({author_emails!r})"
                 )
         for violation in scan_message(message_of(commit), commit[:12]):
             problems.append(violation.render())
@@ -189,7 +191,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--range", help="check commits in a git revision range")
     parser.add_argument(
         "--author-email",
-        help="require this author email (case-insensitive) on every checked commit",
+        action="append",
+        default=[],
+        help=(
+            "require one of these author emails (case-insensitive) on every "
+            "checked commit; repeat the option to allow several"
+        ),
     )
     arguments = parser.parse_args(argv)
 

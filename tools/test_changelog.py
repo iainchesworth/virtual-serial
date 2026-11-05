@@ -213,6 +213,49 @@ class ChangelogToolTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("semantic version", result.stderr)
 
+    def test_semver_orders_prereleases(self) -> None:
+        import changelog as module
+
+        self.assertLess(
+            module.semver("0.1.0-beta.1"), module.semver("0.1.0-beta.2"))
+        self.assertLess(
+            module.semver("0.1.0-beta.2"), module.semver("0.1.0-beta.10"))
+        self.assertLess(module.semver("0.1.0-beta.10"), module.semver("0.1.0"))
+
+    def test_release_accepts_prerelease_and_prints_notes(self) -> None:
+        changelog = """# Changelog
+
+## [Unreleased]
+
+[Unreleased]: https://example.test/compare/v0.0.0...HEAD
+"""
+        (self.root / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
+        fragment = self.write_fragment("beta.added.md", "Beta feature.")
+
+        result = self.run_tool(
+            "--release", "0.1.0-beta.1", "--date", "2026-11-02",
+            "--repo-url", "https://example.test",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(fragment.exists())
+
+        text = self.changelog()
+        self.assertIn("## [0.1.0-beta.1] - 2026-11-02", text)
+        self.assertIn("- Beta feature.", text)
+        self.assertIn(
+            "[Unreleased]: https://example.test/compare/v0.1.0-beta.1...HEAD",
+            text,
+        )
+        self.assertIn(
+            "[0.1.0-beta.1]: https://example.test/releases/tag/v0.1.0-beta.1",
+            text,
+        )
+
+        notes = self.run_tool("--notes", "0.1.0-beta.1")
+        self.assertEqual(notes.returncode, 0, notes.stderr)
+        self.assertIn("Beta feature.", notes.stdout)
+        self.assertNotIn("## [0.1.0-beta.1]", notes.stdout)
+
     def test_release_rejects_invalid_date(self) -> None:
         self.write_fragment("a.added.md", "Entry.")
         result = self.run_tool("--release", "1.1.0", "--date", "03/02/2026")

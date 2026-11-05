@@ -62,7 +62,6 @@ jobs:
             -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/stage"
           cmake --build build-release --parallel 4
           cmake --install build-release
-          cp README.md LICENSE_1_0.txt stage/
           tar -czf \
             "virtual-serial-${{ steps.version.outputs.version }}.tar.gz" \
             -C stage .

@@ -515,6 +515,7 @@ jobs:
       - name: Check authors and messages
         env:
           MAINTAINER_EMAIL: iain.chesworth@gmail.com
+          MAINTAINER_NOREPLY_EMAIL: iainchesworth@users.noreply.github.com
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -525,7 +526,8 @@ jobs:
             RANGE="HEAD"
           fi
           python tools/check_commit_message.py --range "$RANGE" \
-            --author-email "$MAINTAINER_EMAIL"
+            --author-email "$MAINTAINER_EMAIL" \
+            --author-email "$MAINTAINER_NOREPLY_EMAIL"
 
   # ---------------------------------------------------------------------------
   # Changelog fragments: validate every file and preview the next section.

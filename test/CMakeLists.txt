@@ -36,7 +36,8 @@ add_executable(boost_virtual_serial_tests
   integration/rfc2217_protocol_test.cpp
   integration/physical_loopback_test.cpp
   integration/serial_modes_test.cpp
-  asio/async_contract_test.cpp)
+  asio/async_contract_test.cpp
+  asio/timeout_threads_test.cpp)
 
 target_link_libraries(boost_virtual_serial_tests
   PRIVATE Boost::virtual_serial Threads::Threads)
